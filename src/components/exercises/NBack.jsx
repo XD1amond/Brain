@@ -95,7 +95,7 @@ export default function NBack() {
     stimuli: {
       position: true,
       color: false,
-      audio: false,
+      audio: true,
       shape: false,
       number: false
     }
