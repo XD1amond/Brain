@@ -20,6 +20,7 @@ export function ThemeProvider({ children, ...props }) {
       defaultTheme="system"
       enableSystem
       disableTransitionOnChange
+      enableColorScheme
       {...props}
     >
       {children}
@@ -33,7 +34,7 @@ export function ThemeSwitcher() {
   return (
     <button
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="fixed bottom-4 right-4 p-3 rounded-full bg-primary/10 backdrop-blur-sm border border-primary/20 hover:bg-primary/20 transition-colors"
+      className="fixed bottom-4 right-4 p-3 rounded-full bg-card hover:bg-accent shadow-lg border border-border backdrop-blur-sm transition-colors"
       aria-label="Toggle theme"
     >
       {theme === 'dark' ? (

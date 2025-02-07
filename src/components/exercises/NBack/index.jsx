@@ -25,8 +25,8 @@ function Grid3D({ position, color, isActive }) {
             <mesh>
               <boxGeometry args={[1.8, 1.8, 1.8]} />
               <meshPhongMaterial
-                color={active ? color : '#2a3f54'}
-                opacity={active ? 1 : 0.1}
+                color={active ? color : '#4a5568'}
+                opacity={active ? 1 : 0.15}
                 transparent
                 depthWrite={active}
               />
@@ -64,7 +64,7 @@ function Grid2D({ position, color, number }) {
             key={i}
             className={cn(
               "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl font-bold",
-              active ? "bg-primary text-primary-foreground" : "bg-muted"
+              active ? "bg-primary text-primary-foreground" : "border border-border bg-card/50 text-muted-foreground dark:bg-muted"
             )}
             style={active ? { '--active-color': color } : {}}
           >
@@ -74,6 +74,18 @@ function Grid2D({ position, color, number }) {
       })}
     </div>
   );
+}
+
+function getNBackType(stimuli) {
+  const activeCount = Object.values(stimuli).filter(Boolean).length;
+  const types = {
+    1: 'Single',
+    2: 'Dual',
+    3: 'Triple',
+    4: 'Quad',
+    5: 'Quint'
+  };
+  return types[activeCount] || '';
 }
 
 export default function NBack() {
@@ -237,10 +249,12 @@ export default function NBack() {
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-8">
           <div className="space-y-6">
-            <div className="bg-card rounded-xl overflow-hidden shadow-lg">
-              <div className="p-6 border-b border-border">
+            <div className="bg-card dark:bg-gray-900 rounded-xl overflow-hidden shadow-lg">
+              <div className="p-6 border-b border-border dark:border-gray-700">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">N-Back Training</h2>
+                  <h2 className="text-2xl font-bold text-foreground dark:text-gray-100">
+                    {getNBackType(settings.stimuli)} N-Back
+                  </h2>
                   <button
                     onClick={() => setIsPlaying(!isPlaying)}
                     className={cn(
@@ -255,7 +269,7 @@ export default function NBack() {
                 </div>
               </div>
 
-              <div className="h-[600px] flex items-center justify-center bg-gradient-to-b from-background to-background/50">
+              <div className="h-[600px] flex items-center justify-center bg-gradient-to-b from-background to-background/50 dark:from-gray-900 dark:to-gray-900/50">
                 {settings.is3D ? (
                   <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
                     <ambientLight intensity={0.5} />
@@ -276,19 +290,19 @@ export default function NBack() {
               </div>
             </div>
 
-            <div className="bg-card rounded-xl p-6 shadow-lg">
-              <h3 className="text-lg font-medium mb-4">Performance</h3>
+            <div className="bg-card dark:bg-gray-900 rounded-xl p-6 shadow-lg">
+              <h3 className="text-lg font-medium mb-4 text-foreground dark:text-gray-100">Performance</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {Object.entries(scores).map(([type, score]) => (
                   settings.stimuli[type] && (
-                    <div key={type} className="p-4 bg-muted rounded-lg">
-                      <div className="text-sm font-medium text-muted-foreground mb-1 capitalize">
+                    <div key={type} className="p-4 bg-muted dark:bg-gray-800 rounded-lg">
+                      <div className="text-sm font-medium text-muted-foreground dark:text-gray-400 mb-1 capitalize">
                         {type}
                       </div>
-                      <div className="text-2xl font-bold">
+                      <div className="text-2xl font-bold text-foreground dark:text-gray-100">
                         {score.correct}/{score.total}
                         {score.total > 0 && (
-                          <span className="text-sm font-normal text-muted-foreground ml-2">
+                          <span className="text-sm font-normal text-muted-foreground dark:text-gray-400 ml-2">
                             ({Math.round(score.correct/score.total * 100)}%)
                           </span>
                         )}

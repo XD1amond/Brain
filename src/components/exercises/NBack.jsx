@@ -63,8 +63,8 @@ function Grid2D({ position, color, number }) {
             key={i}
             className={cn(
               "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl",
-              active ? "bg-[color:var(--active-color)]" : "bg-white",
-              active ? "text-white" : "text-transparent"
+              active ? "bg-[color:var(--active-color)] text-white" : "bg-card dark:bg-muted border border-border",
+              !active && "text-transparent"
             )}
             style={{ '--active-color': color }}
           >
@@ -269,7 +269,7 @@ export default function NBack() {
           
           <div className="space-y-6">
             <div className="space-y-4">
-              <label className="flex items-center space-x-2">
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                 <input
                   type="checkbox"
                   checked={settings.is3D}
@@ -277,14 +277,14 @@ export default function NBack() {
                     ...prev,
                     is3D: e.target.checked
                   }))}
-                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                  className="form-checkbox"
                   disabled={isPlaying}
                 />
                 <span>3D Grid</span>
               </label>
 
               <div>
-                <label className="block text-sm font-medium mb-1">N-Back Level:</label>
+                <label className="form-label">N-Back Level:</label>
                 <input
                   type="number"
                   value={settings.nBack}
@@ -294,15 +294,15 @@ export default function NBack() {
                   }))}
                   min="1"
                   max="5"
-                  className="w-20 rounded-md border-gray-300 focus:border-primary focus:ring-primary"
+                  className="form-input w-20"
                   disabled={isPlaying}
                 />
               </div>
 
-              <div className="space-y-2">
-                <h3 className="font-medium">Stimuli:</h3>
+              <div className="form-group">
+                <h3 className="text-sm font-medium text-muted-foreground">Stimuli:</h3>
                 {Object.entries(settings.stimuli).map(([key, value]) => (
-                  <label key={key} className="flex items-center space-x-2">
+                  <label key={key} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                     <input
                       type="checkbox"
                       checked={value}
@@ -313,7 +313,7 @@ export default function NBack() {
                           [key]: e.target.checked
                         }
                       }))}
-                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                      className="form-checkbox"
                       disabled={isPlaying}
                     />
                     <span className="capitalize">{key}</span>
@@ -335,8 +335,8 @@ export default function NBack() {
               className={cn(
                 "w-full py-2 px-4 rounded-md font-medium transition-colors",
                 isPlaying
-                  ? "bg-red-500 hover:bg-red-600 text-white"
-                  : "bg-primary hover:bg-primary/90 text-white"
+                  ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                  : "bg-primary hover:bg-primary/90 text-primary-foreground"
               )}
             >
               {isPlaying ? 'Stop' : 'Start'}
@@ -345,9 +345,9 @@ export default function NBack() {
             <div className="space-y-2">
               {Object.entries(scores).map(([type, score]) => (
                 settings.stimuli[type] && (
-                  <div key={type} className="flex justify-between items-center">
-                    <span className="capitalize">{type}:</span>
-                    <span className="font-medium">
+                  <div key={type} className="flex justify-between items-center text-sm">
+                    <span className="capitalize text-muted-foreground">{type}:</span>
+                    <span className="font-medium text-foreground">
                       {score.correct}/{score.total}
                       {score.total > 0 && 
                         ` (${Math.round(score.correct/score.total * 100)}%)`
@@ -358,13 +358,13 @@ export default function NBack() {
               ))}
             </div>
 
-            <div className="border-t pt-4 space-y-1">
-              <h3 className="font-medium">Controls:</h3>
+            <div className="border-t border-border pt-4 space-y-2">
+              <h3 className="text-sm font-medium text-muted-foreground">Controls:</h3>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>Position: <kbd className="px-2 py-1 bg-gray-100 rounded">A</kbd></div>
-                <div>Color: <kbd className="px-2 py-1 bg-gray-100 rounded">S</kbd></div>
-                <div>Audio: <kbd className="px-2 py-1 bg-gray-100 rounded">D</kbd></div>
-                <div>Number: <kbd className="px-2 py-1 bg-gray-100 rounded">F</kbd></div>
+                <div>Position: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">A</kbd></div>
+                <div>Color: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">S</kbd></div>
+                <div>Audio: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">D</kbd></div>
+                <div>Number: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">F</kbd></div>
               </div>
             </div>
           </div>

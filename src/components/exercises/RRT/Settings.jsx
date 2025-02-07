@@ -30,64 +30,60 @@ export function Settings({ settings, onSettingsChange }) {
           <div>
             <h3 className="text-lg font-medium text-primary mb-4">General</h3>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Number of Premises
-                </label>
+              <div className="form-group">
+                <label className="form-label">Number of Premises</label>
                 <input
                   type="number"
                   min="2"
                   max="6"
                   value={settings.premises}
                   onChange={e => handleChange('premises', parseInt(e.target.value))}
-                  className="w-full rounded-md border-gray-300 focus:border-primary focus:ring-primary"
+                  className="form-input"
                 />
               </div>
 
-              <label className="flex items-center space-x-2">
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                 <input
                   type="checkbox"
                   checked={settings.enableCarouselMode}
                   onChange={e => handleChange('enableCarouselMode', e.target.checked)}
-                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                  className="form-checkbox"
                 />
-                <span>Carousel Mode</span>
+                <span className="font-medium">Carousel Mode</span>
               </label>
 
-              <label className="flex items-center space-x-2">
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                 <input
                   type="checkbox"
                   checked={settings.enableTimer}
                   onChange={e => handleChange('enableTimer', e.target.checked)}
-                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                  className="form-checkbox"
                 />
-                <span>Enable Timer</span>
+                <span className="font-medium">Enable Timer</span>
               </label>
 
               {settings.enableTimer && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Timer Duration (seconds)
-                  </label>
+                <div className="form-group">
+                  <label className="form-label">Timer Duration (seconds)</label>
                   <input
                     type="number"
                     min="5"
                     max="60"
                     value={settings.timerDuration}
                     onChange={e => handleChange('timerDuration', parseInt(e.target.value))}
-                    className="w-full rounded-md border-gray-300 focus:border-primary focus:ring-primary"
+                    className="form-input"
                   />
                 </div>
               )}
 
-              <label className="flex items-center space-x-2">
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                 <input
                   type="checkbox"
                   checked={settings.enableStroopEffect}
                   onChange={e => handleChange('enableStroopEffect', e.target.checked)}
-                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                  className="form-checkbox"
                 />
-                <span>Enable Stroop Effect</span>
+                <span className="font-medium">Enable Stroop Effect</span>
               </label>
             </div>
           </div>
@@ -108,14 +104,14 @@ export function Settings({ settings, onSettingsChange }) {
                 analogy: 'Analogy',
                 binary: 'Binary Logic'
               }).map(([type, label]) => (
-                <label key={type} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-muted transition-colors">
+                <label key={type} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                   <input
                     type="checkbox"
                     checked={settings.questionTypes[type]}
                     onChange={e => handleQuestionTypeChange(type, e.target.checked)}
-                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                    className="form-checkbox"
                   />
-                  <span>{label}</span>
+                  <span className="font-medium">{label}</span>
                 </label>
               ))}
             </div>

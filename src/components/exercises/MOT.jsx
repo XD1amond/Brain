@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { PerspectiveCamera, Environment } from '@react-three/drei';
-import { Physics, useSphere, useBox } from '@react-three/cannon';
+import { Physics, useSphere } from '@react-three/cannon';
 import { motion } from 'framer-motion';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
+import { Room } from './MOT/Room';
 
 function Ball({ position, isHighlighted, isSelectable, onClick, velocity }) {
   const [ref, api] = useSphere(() => ({
@@ -65,49 +66,18 @@ function Ball({ position, isHighlighted, isSelectable, onClick, velocity }) {
   );
 }
 
-function Cube() {
-  const [ref] = useBox(() => ({
-    type: 'Static',
-    args: [10, 10, 10],
-  }));
-
-  const gridMaterial = new THREE.LineBasicMaterial({ 
-    color: '#3498db',
-    transparent: true,
-    opacity: 0.2
-  });
-
-  return (
-    <group>
-      <mesh ref={ref}>
-        <boxGeometry args={[10, 10, 10]} />
-        <meshPhongMaterial
-          color="#2c3e50"
-          transparent
-          opacity={0.05}
-          side={THREE.BackSide}
-        />
-      </mesh>
-      <gridHelper args={[10, 10]} material={gridMaterial} />
-      <gridHelper args={[10, 10]} material={gridMaterial} rotation={[Math.PI / 2, 0, 0]} />
-      <gridHelper args={[10, 10]} material={gridMaterial} rotation={[0, 0, Math.PI / 2]} />
-    </group>
-  );
-}
 
 function Scene({ balls, targetIndices, gameState, onBallClick, velocity }) {
   return (
     <>
-      <Environment preset="city" />
-      <PerspectiveCamera 
-        makeDefault 
+      <Environment preset="sunset" />
+      <PerspectiveCamera
+        makeDefault
         position={[0, 0, 15]}
         fov={50}
       />
-      <ambientLight intensity={0.5} />
-      <pointLight position={[10, 10, 10]} intensity={1} />
       <Physics gravity={[0, 0, 0]}>
-        <Cube />
+        <Room />
         {balls.map((ball, index) => (
           <Ball
             key={index}
@@ -253,8 +223,8 @@ export default function MOT() {
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Number of Balls</label>
+                <div className="form-group">
+                  <label className="form-label">Number of Balls</label>
                   <input
                     type="number"
                     value={settings.numBalls}
@@ -264,12 +234,12 @@ export default function MOT() {
                     }))}
                     min="4"
                     max="20"
-                    className="w-full rounded-md border-gray-300 focus:border-primary focus:ring-primary"
+                    className="form-input"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-1">Target Balls</label>
+                <div className="form-group">
+                  <label className="form-label">Target Balls</label>
                   <input
                     type="number"
                     value={settings.numTargets}
@@ -282,12 +252,12 @@ export default function MOT() {
                     }))}
                     min="1"
                     max={settings.numBalls - 1}
-                    className="w-full rounded-md border-gray-300 focus:border-primary focus:ring-primary"
+                    className="form-input"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-1">Tracking Time (s)</label>
+                <div className="form-group">
+                  <label className="form-label">Tracking Time (s)</label>
                   <input
                     type="number"
                     value={settings.trackingTime}
@@ -297,12 +267,12 @@ export default function MOT() {
                     }))}
                     min="5"
                     max="30"
-                    className="w-full rounded-md border-gray-300 focus:border-primary focus:ring-primary"
+                    className="form-input"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-1">Ball Speed</label>
+                <div className="form-group">
+                  <label className="form-label">Ball Speed</label>
                   <input
                     type="number"
                     value={settings.velocity}
@@ -312,14 +282,14 @@ export default function MOT() {
                     }))}
                     min="1"
                     max="10"
-                    className="w-full rounded-md border-gray-300 focus:border-primary focus:ring-primary"
+                    className="form-input"
                   />
                 </div>
               </div>
 
               <button
                 onClick={initializeBalls}
-                className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-white rounded-md font-medium transition-colors"
+                className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-medium transition-colors"
               >
                 Start Exercise
               </button>
@@ -336,7 +306,7 @@ export default function MOT() {
               </div>
               <button
                 onClick={startTracking}
-                className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-white rounded-md font-medium transition-colors"
+                className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-medium transition-colors"
               >
                 Start Tracking
               </button>
@@ -360,8 +330,8 @@ export default function MOT() {
                 className={cn(
                   "w-full py-2 px-4 rounded-md font-medium transition-colors",
                   selectedIndices.length === settings.numTargets
-                    ? "bg-primary hover:bg-primary/90 text-white"
-                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
                 )}
               >
                 Check Results
@@ -374,8 +344,8 @@ export default function MOT() {
               <div className={cn(
                 "p-4 rounded-lg",
                 selectedIndices.filter(index => targetIndices.includes(index)).length === settings.numTargets
-                  ? "bg-green-500/10"
-                  : "bg-red-500/10"
+                  ? "bg-success/10"
+                  : "bg-destructive/10"
               )}>
                 <h3 className="font-semibold mb-2">Results</h3>
                 <p className="text-3xl font-bold text-center my-4">
@@ -388,7 +358,7 @@ export default function MOT() {
                   setSelectedIndices([]);
                   setGameState('setup');
                 }}
-                className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-white rounded-md font-medium transition-colors"
+                className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-medium transition-colors"
               >
                 Try Again
               </button>

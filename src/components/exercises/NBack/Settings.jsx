@@ -81,7 +81,7 @@ export function Settings({ settings, onSettingsChange }) {
             }).map(([type, key]) => (
               <div key={type} className="flex items-center justify-between">
                 <span className="capitalize">{type}:</span>
-                <kbd className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted rounded border border-border">
+                <kbd className="px-2 py-1.5 text-xs font-semibold bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">
                   {key}
                 </kbd>
               </div>
