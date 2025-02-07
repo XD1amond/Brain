@@ -7,6 +7,18 @@ import { cn } from '@/lib/utils';
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
 
+function getNBackType(stimuli) {
+  const activeCount = Object.values(stimuli).filter(Boolean).length;
+  const types = {
+    1: 'Single',
+    2: 'Dual',
+    3: 'Triple',
+    4: 'Quad',
+    5: 'Quint'
+  };
+  return types[activeCount] || '';
+}
+
 function Grid3D({ position, color, isActive }) {
   return (
     <group>
@@ -265,7 +277,7 @@ export default function NBack() {
         </div>
 
         <div className="w-[350px] bg-card rounded-xl p-6 shadow-lg">
-          <h2 className="text-2xl font-bold mb-6">N-Back Training</h2>
+          <h2 className="text-2xl font-bold mb-6">{getNBackType(settings.stimuli)} N-Back</h2>
           
           <div className="space-y-6">
             <div className="space-y-4">
