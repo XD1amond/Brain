@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/brain.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brain Training</title>
+    <!-- Preload critical fonts -->
+    <link
+      rel="preload"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      as="style"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+    />
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Meta tags for better SEO and sharing -->
+    <meta name="description" content="Advanced brain training exercises including RRT, 3D MOT, and N-Back training." />
+    <meta name="theme-color" content="#6366f1" />
+    <meta property="og:title" content="Brain Training" />
+    <meta property="og:description" content="Advanced brain training exercises including RRT, 3D MOT, and N-Back training." />
+    <meta property="og:type" content="website" />
+    <!-- Critical CSS for initial render -->
+    <style>
+      /* Minimize content shift during load */
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #f3f4f6;
+      }
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
