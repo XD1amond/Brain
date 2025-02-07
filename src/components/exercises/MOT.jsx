@@ -7,60 +7,105 @@ import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 import { Room } from './MOT/Room';
 
-function Ball({ position, isHighlighted, isSelectable, onClick, velocity }) {
+function Ball({ position, isHighlighted, isSelectable, onClick, velocity, gameState }) {
   const [ref, api] = useSphere(() => ({
     mass: 1,
     position,
-    args: [0.5],
+    args: [0.45],
     linearDamping: 0.31,
     angularDamping: 0.31,
+    collisionResponse: true,
+    fixedRotation: true,
+    material: {
+      friction: 0,
+      restitution: 1
+    },
+    sleepTimeLimit: 0.1,
+    allowSleep: false
   }));
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (Math.random() < 0.1) {
-        api.velocity.set(
-          (Math.random() - 0.5) * velocity,
-          (Math.random() - 0.5) * velocity,
-          (Math.random() - 0.5) * velocity
-        );
-      }
-    }, 1000);
+    // Only start movement when in tracking state
+    if (gameState === 'tracking' && velocity > 0) {
+      // Initial velocity
+      // Initial velocity
+      const angle = Math.random() * Math.PI * 2;
+      const elevation = (Math.random() - 0.5) * Math.PI;
+      const speed = velocity * (0.8 + Math.random() * 0.8); // Match interval speed variation
+      api.velocity.set(
+        Math.cos(angle) * Math.cos(elevation) * speed,
+        Math.sin(elevation) * speed,
+        Math.sin(angle) * Math.cos(elevation) * speed
+      );
 
-    // Keep balls within bounds
-    const unsubscribe = api.position.subscribe((pos) => {
-      const bounds = 4; // Half of the cube size (10/2 - ball radius)
-      if (Math.abs(pos[0]) > bounds || Math.abs(pos[1]) > bounds || Math.abs(pos[2]) > bounds) {
-        // If ball is out of bounds, reverse its direction
+      const interval = setInterval(() => {
+        // Random direction changes
+        const angle = Math.random() * Math.PI * 2;
+        const elevation = (Math.random() - 0.5) * Math.PI;
+        const speed = velocity * (0.8 + Math.random() * 0.8); // Varying speed
         api.velocity.set(
-          -pos[0] * 0.5,
-          -pos[1] * 0.5,
-          -pos[2] * 0.5
+          Math.cos(angle) * Math.cos(elevation) * speed,
+          Math.sin(elevation) * speed,
+          Math.sin(angle) * Math.cos(elevation) * speed
         );
-        // Move ball slightly inward
-        api.position.set(
-          Math.min(Math.max(pos[0], -bounds), bounds),
-          Math.min(Math.max(pos[1], -bounds), bounds),
-          Math.min(Math.max(pos[2], -bounds), bounds)
-        );
+      }, 800); // More frequent updates
+
+      return () => clearInterval(interval);
+    } else {
+      // Stop movement when not in tracking state
+      api.velocity.set(0, 0, 0);
+    }
+  }, [api, velocity, gameState]);
+
+  // Keep balls within bounds
+  useEffect(() => {
+    const unsubscribe = api.position.subscribe((pos) => {
+      const boundsX = 5.5;  // Horizontal bounds
+      const boundsY = 3.5;  // Vertical bounds (shorter)
+      const boundsZ = 5.5;  // Depth bounds
+      
+      const bounds = [boundsX, boundsY, boundsZ];
+      let needsUpdate = false;
+      let newPos = [...pos];
+      let newVel = [0, 0, 0];
+  
+      // Check each axis
+      for (let i = 0; i < 3; i++) {
+        if (Math.abs(pos[i]) > bounds[i]) {
+          needsUpdate = true;
+          // Simple bounce with fixed velocity
+          newVel[i] = -Math.sign(pos[i]) * velocity * 0.8;
+          // Push ball away from boundary
+          newPos[i] = Math.sign(pos[i]) * (bounds[i] - 0.1);
+        }
+      }
+  
+      if (needsUpdate) {
+        api.position.set(...newPos);
+        api.velocity.set(...newVel);
       }
     });
 
-    return () => {
-      clearInterval(interval);
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [api, velocity]);
 
   return (
     <mesh ref={ref} onClick={isSelectable ? onClick : undefined}>
-      <sphereGeometry args={[0.5, 32, 32]} />
-      <meshStandardMaterial
-        color={isHighlighted ? '#ff4444' : '#ffffff'}
-        emissive={isHighlighted ? '#ff4444' : '#000000'}
+      <sphereGeometry args={[0.45, 32, 32]} />
+      <meshPhongMaterial
+        color={
+          gameState === 'ready' && isHighlighted ? '#ff4444' :
+          gameState === 'selection' && isHighlighted ? '#44ff44' :
+          '#ffffff'
+        }
+        emissive={
+          gameState === 'ready' && isHighlighted ? '#ff4444' :
+          gameState === 'selection' && isHighlighted ? '#44ff44' :
+          '#000000'
+        }
         emissiveIntensity={isHighlighted ? 0.5 : 0}
-        metalness={0.5}
-        roughness={0.2}
+        shininess={70}
+        specular="#ffffff"
       />
     </mesh>
   );
@@ -70,13 +115,26 @@ function Ball({ position, isHighlighted, isSelectable, onClick, velocity }) {
 function Scene({ balls, targetIndices, gameState, onBallClick, velocity }) {
   return (
     <>
-      <Environment preset="sunset" />
+      <Environment preset="night" />
       <PerspectiveCamera
         makeDefault
-        position={[0, 0, 15]}
-        fov={50}
+        position={[0, 0, 12]}
+        fov={60}
       />
-      <Physics gravity={[0, 0, 0]}>
+      <ambientLight intensity={0.2} />
+      <pointLight position={[0, 0, 10]} intensity={0.5} />
+      <Physics
+        gravity={[0, 0, 0]}
+        defaultContactMaterial={{
+          friction: 0,
+          restitution: 1,
+          contactEquationStiffness: 1e8,
+          contactEquationRelaxation: 1,
+          contactEquationRegularizationTime: 3
+        }}
+        iterations={20}
+        tolerance={0.0001}
+      >
         <Room />
         {balls.map((ball, index) => (
           <Ball
@@ -90,6 +148,7 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity }) {
             isSelectable={gameState === 'selection'}
             onClick={() => onBallClick(index)}
             velocity={velocity}
+            gameState={gameState}
           />
         ))}
       </Physics>
@@ -101,29 +160,46 @@ export default function MOT() {
   const [settings, setSettings] = useState({
     numBalls: 8,
     numTargets: 3,
+    rememberTime: 3,
     trackingTime: 10,
-    velocity: 5,
+    selectionTime: 5,
+    velocity: 7,
   });
   const [gameState, setGameState] = useState('setup');
-  const [balls, setBalls] = useState([]);
+  const [balls, setBalls] = useState(() => {
+    // Initialize balls with random positions
+    const initialBalls = [];
+    for (let i = 0; i < 8; i++) {
+      initialBalls.push({
+        position: [
+          (Math.random() - 0.5) * 8,
+          (Math.random() - 0.5) * 5, // Reduced vertical spread
+          (Math.random() - 0.5) * 8
+        ]
+      });
+    }
+    return initialBalls;
+  });
   const [targetIndices, setTargetIndices] = useState([]);
   const [selectedIndices, setSelectedIndices] = useState([]);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
 
   const initializeBalls = () => {
+    // Create new balls
     const newBalls = [];
     for (let i = 0; i < settings.numBalls; i++) {
       newBalls.push({
         position: [
-          (Math.random() - 0.5) * 6, // Reduced initial spread
-          (Math.random() - 0.5) * 6,
-          (Math.random() - 0.5) * 6
+          (Math.random() - 0.5) * 8,
+          (Math.random() - 0.5) * 5, // Reduced vertical spread
+          (Math.random() - 0.5) * 8
         ]
       });
     }
     setBalls(newBalls);
 
+    // Select target balls
     const newTargetIndices = [];
     while (newTargetIndices.length < settings.numTargets) {
       const index = Math.floor(Math.random() * settings.numBalls);
@@ -132,21 +208,30 @@ export default function MOT() {
       }
     }
     setTargetIndices(newTargetIndices);
+    
+    // Start remember phase with timer
     setGameState('ready');
+    setTimeLeft(settings.rememberTime);
   };
 
-  const startTracking = () => {
-    setGameState('tracking');
-    setTimeLeft(settings.trackingTime);
-  };
-
+  // Handle game state transitions and timers
   useEffect(() => {
-    if (gameState !== 'tracking') return;
+    if (!gameState || gameState === 'setup' || gameState === 'results') return;
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          setGameState('selection');
+          // Transition states
+          if (gameState === 'ready') {
+            setGameState('tracking');
+            return settings.trackingTime;
+          } else if (gameState === 'tracking') {
+            setGameState('selection');
+            return settings.selectionTime;
+          } else if (gameState === 'selection') {
+            checkResults();
+            return 0;
+          }
           return 0;
         }
         return prev - 1;
@@ -154,7 +239,7 @@ export default function MOT() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [gameState]);
+  }, [gameState, settings.trackingTime, settings.rememberTime]);
 
   const handleBallClick = (index) => {
     if (gameState !== 'selection') return;
@@ -186,12 +271,18 @@ export default function MOT() {
             Score: <span className="text-primary">{score}</span>
           </div>
           
-          {(gameState === 'tracking' || gameState === 'selection') && (
+          {(gameState === 'ready' || gameState === 'tracking' || gameState === 'selection') && (
             <div className="absolute top-4 left-4 right-4 z-10">
               <div className="h-1 bg-background/20 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-primary transition-all duration-1000 ease-linear"
-                  style={{ width: `${(timeLeft / settings.trackingTime) * 100}%` }}
+                  style={{
+                    width: `${(timeLeft / (
+                      gameState === 'ready' ? settings.rememberTime :
+                      gameState === 'tracking' ? settings.trackingTime :
+                      settings.selectionTime
+                    )) * 100}%`
+                  }}
                 />
               </div>
             </div>
@@ -204,7 +295,7 @@ export default function MOT() {
                 targetIndices={targetIndices}
                 gameState={gameState}
                 onBallClick={handleBallClick}
-                velocity={settings.velocity}
+                velocity={gameState === 'tracking' ? settings.velocity : 0}
               />
             </Canvas>
           </div>
@@ -272,6 +363,36 @@ export default function MOT() {
                 </div>
 
                 <div className="form-group">
+                  <label className="form-label">Remember Time (s)</label>
+                  <input
+                    type="number"
+                    value={settings.rememberTime}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      rememberTime: Math.max(1, Math.min(10, parseInt(e.target.value)))
+                    }))}
+                    min="1"
+                    max="10"
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Selection Time (s)</label>
+                  <input
+                    type="number"
+                    value={settings.selectionTime}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      selectionTime: Math.max(3, Math.min(10, parseInt(e.target.value)))
+                    }))}
+                    min="3"
+                    max="10"
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
                   <label className="form-label">Ball Speed</label>
                   <input
                     type="number"
@@ -301,15 +422,9 @@ export default function MOT() {
               <div className="p-4 bg-primary/5 rounded-lg">
                 <h3 className="font-semibold mb-2">Remember These Balls</h3>
                 <p className="text-sm text-muted-foreground">
-                  Pay attention to the highlighted balls. You will need to track them when they start moving.
+                  Pay attention to the highlighted balls. They will start moving in {timeLeft} seconds.
                 </p>
               </div>
-              <button
-                onClick={startTracking}
-                className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-medium transition-colors"
-              >
-                Start Tracking
-              </button>
             </div>
           )}
 

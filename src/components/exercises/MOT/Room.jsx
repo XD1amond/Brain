@@ -2,16 +2,16 @@ import * as THREE from 'three';
 import { useRef } from 'react';
 
 export function Room() {
-  // Create a prominent edge material
+  // Create edge material
   const edgeMaterial = new THREE.LineBasicMaterial({
-    color: '#3498db',
+    color: '#333333',
     transparent: true,
-    opacity: 0.6,
-    linewidth: 2
+    opacity: 0.3,
+    linewidth: 1
   });
 
-  // Create room geometry
-  const roomGeometry = new THREE.BoxGeometry(10, 10, 10);
+  // Create room geometry (shorter height)
+  const roomGeometry = new THREE.BoxGeometry(12, 8, 12);
   const edges = new THREE.EdgesGeometry(roomGeometry);
 
   return (
@@ -19,115 +19,81 @@ export function Room() {
       {/* Room edges */}
       <lineSegments geometry={edges} material={edgeMaterial} />
 
-      {/* Floor with subtle grid */}
-      <mesh position={[0, -5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[10, 10, 10, 10]} />
-        <meshBasicMaterial
-          color="#3498db"
-          wireframe
-          transparent
-          opacity={0.15}
-          emissive="#3498db"
-          emissiveIntensity={0.1}
-        />
-      </mesh>
-
-      {/* Back wall with subtle grid */}
-      <mesh position={[0, 0, -5]}>
-        <planeGeometry args={[10, 10, 10, 10]} />
-        <meshBasicMaterial
-          color="#3498db"
-          wireframe
-          transparent
-          opacity={0.15}
-          emissive="#3498db"
-          emissiveIntensity={0.1}
-        />
-      </mesh>
-
-      {/* Side walls with subtle grid */}
-      <mesh position={[-5, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <planeGeometry args={[10, 10, 10, 10]} />
-        <meshBasicMaterial
-          color="#3498db"
-          wireframe
-          transparent
-          opacity={0.15}
-          emissive="#3498db"
-          emissiveIntensity={0.1}
-        />
-      </mesh>
-
-      <mesh position={[5, 0, 0]} rotation={[0, -Math.PI / 2, 0]}>
-        <planeGeometry args={[10, 10, 10, 10]} />
-        <meshBasicMaterial
-          color="#3498db"
-          wireframe
-          transparent
-          opacity={0.15}
-          emissive="#3498db"
-          emissiveIntensity={0.1}
-        />
-      </mesh>
-
-      {/* Ceiling with subtle grid */}
-      <mesh position={[0, 5, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[10, 10, 10, 10]} />
-        <meshBasicMaterial
+      {/* Floor */}
+      <mesh position={[0, -4, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[12.001, 12.001]} /> {/* Slightly larger to prevent gaps */}
+        <meshPhongMaterial
           color="#111111"
-          wireframe
           transparent
-          opacity={0.1}
+          opacity={0.3}
+          shininess={0}
         />
       </mesh>
 
-      {/* Corner edge highlights */}
-      {[
-        [-5, -5, -5], [5, -5, -5], [-5, 5, -5], [5, 5, -5],
-        [-5, -5, 5], [5, -5, 5], [-5, 5, 5], [5, 5, 5]
-      ].map((position, index) => (
-        <mesh key={index} position={position}>
-          <sphereGeometry args={[0.15, 32, 32]} />
-          <meshStandardMaterial
-            color="#3498db"
-            emissive="#3498db"
-            emissiveIntensity={0.5}
-            transparent
-            opacity={0.8}
-            metalness={0.9}
-            roughness={0.1}
-          />
-        </mesh>
-      ))}
-
-      {/* Enhanced ambient lighting */}
-      <ambientLight intensity={0.4} />
-
-      {/* Corner lights with increased intensity */}
-      {[
-        [-4, 4, -4], [4, 4, -4], [-4, 4, 4], [4, 4, 4],
-        [-4, -4, -4], [4, -4, -4], [-4, -4, 4], [4, -4, 4]
-      ].map((position, index) => (
-        <pointLight
-          key={index}
-          position={position}
-          intensity={0.3}
-          distance={12}
-          decay={2}
-          color="#3498db"
+      {/* Back wall */}
+      <mesh position={[0, 0, -6]} receiveShadow>
+        <planeGeometry args={[12.001, 8.001]} /> {/* Slightly larger to prevent gaps */}
+        <meshPhongMaterial
+          color="#111111"
+          transparent
+          opacity={0.3}
+          shininess={0}
         />
-      ))}
+      </mesh>
 
-      {/* Enhanced center focus light */}
-      <spotLight
-        position={[0, 0, 10]}
-        angle={Math.PI / 3}
-        penumbra={0.7}
-        intensity={0.6}
-        distance={30}
-        decay={1.5}
-        color="#ffffff"
-      />
+      {/* Side walls */}
+      <mesh position={[-6, 0, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[12.001, 8.001]} /> {/* Slightly larger to prevent gaps */}
+        <meshPhongMaterial
+          color="#111111"
+          transparent
+          opacity={0.3}
+          shininess={0}
+        />
+      </mesh>
+
+      <mesh position={[6, 0, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[12.001, 8.001]} /> {/* Slightly larger to prevent gaps */}
+        <meshPhongMaterial
+          color="#111111"
+          transparent
+          opacity={0.3}
+          shininess={0}
+        />
+      </mesh>
+
+      {/* Ceiling */}
+      <mesh position={[0, 4, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[12.001, 12.001]} /> {/* Slightly larger to prevent gaps */}
+        <meshPhongMaterial
+          color="#111111"
+          transparent
+          opacity={0.3}
+          shininess={0}
+        />
+      </mesh>
+
+      {/* Invisible physics walls */}
+      <mesh position={[0, -4, 0]}>
+        <boxGeometry args={[12, 0.1, 12]} />
+        <meshBasicMaterial visible={false} />
+      </mesh>
+      <mesh position={[0, 4, 0]}>
+        <boxGeometry args={[12, 0.1, 12]} />
+        <meshBasicMaterial visible={false} />
+      </mesh>
+      <mesh position={[0, 0, -6]}>
+        <boxGeometry args={[12, 8, 0.1]} />
+        <meshBasicMaterial visible={false} />
+      </mesh>
+      <mesh position={[-6, 0, 0]}>
+        <boxGeometry args={[0.1, 8, 12]} />
+        <meshBasicMaterial visible={false} />
+      </mesh>
+      <mesh position={[6, 0, 0]}>
+        <boxGeometry args={[0.1, 8, 12]} />
+        <meshBasicMaterial visible={false} />
+      </mesh>
     </group>
   );
 }
