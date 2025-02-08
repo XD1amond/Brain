@@ -10,13 +10,24 @@ export function Settings({ settings, onSettingsChange }) {
   };
 
   const handleQuestionTypeChange = (type, enabled) => {
-    onSettingsChange(prev => ({
-      ...prev,
-      questionTypes: {
-        ...prev.questionTypes,
-        [type]: enabled
+    onSettingsChange(prev => {
+      // If trying to disable a type, check if it would leave no types enabled
+      if (!enabled) {
+        const enabledCount = Object.values(prev.questionTypes).filter(Boolean).length;
+        if (enabledCount <= 1 && prev.questionTypes[type]) {
+          // Prevent disabling the last enabled type
+          return prev;
+        }
       }
-    }));
+      
+      return {
+        ...prev,
+        questionTypes: {
+          ...prev.questionTypes,
+          [type]: enabled
+        }
+      };
+    });
   };
 
   return (
