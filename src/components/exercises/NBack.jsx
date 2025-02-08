@@ -169,6 +169,15 @@ export default function NBack() {
     number: { correct: 0, total: 0 }
   });
 
+  // Track which controls are toggled for the current turn
+  const [toggledControls, setToggledControls] = useState({
+    position: false,
+    color: false,
+    audio: false,
+    shape: false,
+    number: false
+  });
+
   const [isPlaying, setIsPlaying] = useState(false);
   const audioContext = useRef(null);
 
@@ -298,44 +307,71 @@ export default function NBack() {
   const checkMatch = useCallback((type) => {
     if (!current || sequence.length <= settings.nBack) return;
     
-    const target = sequence[sequence.length - settings.nBack - 1];
-    let isMatch = false;
-    
-    switch (type) {
-      case 'position':
-        isMatch = settings.is3D
-          ? current.position.every((v, i) => v === target.position[i])
-          : current.position[0] === target.position[0] && 
-            current.position[1] === target.position[1];
-        break;
-      case 'color':
-        isMatch = current.color === target.color;
-        break;
-      case 'audio':
-        isMatch = (
-          (settings.audioTypes.tone && current.tone === target.tone) ||
-          (settings.audioTypes.letters && current.letter === target.letter) ||
-          (settings.audioTypes.numbers && current.spokenNumber === target.spokenNumber)
-        );
-        break;
-      case 'number':
-        isMatch = current.number === target.number;
-        break;
-      case 'shape':
-        isMatch = current.shape === target.shape;
-        break;
-      default:
-        return;
-    }
-    
-    setScores(prev => ({
+    // Toggle the control state
+    setToggledControls(prev => ({
       ...prev,
-      [type]: {
-        correct: prev[type].correct + (isMatch ? 1 : 0),
-        total: prev[type].total + 1
-      }
+      [type]: !prev[type]
     }));
-  }, [current, sequence, settings.nBack, settings.is3D]);
+  }, [current, sequence.length, settings.nBack]);
+
+  // Check matches and update scores when a new stimulus appears
+  useEffect(() => {
+    if (!current || sequence.length <= settings.nBack + 1) return;
+    
+    // Get the previous stimulus and its target
+    const prevStimulus = sequence[sequence.length - 2];
+    const prevTarget = sequence[sequence.length - settings.nBack - 2];
+    
+    if (!prevStimulus || !prevTarget) return;
+    
+    // Update scores for each toggled control from the previous turn
+    Object.entries(toggledControls).forEach(([type, isToggled]) => {
+      if (!isToggled) return;
+      
+      let isMatch = false;
+      switch (type) {
+        case 'position':
+          isMatch = settings.is3D
+            ? prevStimulus.position.every((v, i) => v === prevTarget.position[i])
+            : prevStimulus.position[0] === prevTarget.position[0] &&
+              prevStimulus.position[1] === prevTarget.position[1];
+          break;
+        case 'color':
+          isMatch = prevStimulus.color === prevTarget.color;
+          break;
+        case 'audio':
+          isMatch = (
+            (settings.audioTypes.tone && prevStimulus.tone === prevTarget.tone) ||
+            (settings.audioTypes.letters && prevStimulus.letter === prevTarget.letter) ||
+            (settings.audioTypes.numbers && prevStimulus.spokenNumber === prevTarget.spokenNumber)
+          );
+          break;
+        case 'number':
+          isMatch = prevStimulus.number === prevTarget.number;
+          break;
+        case 'shape':
+          isMatch = prevStimulus.shape === prevTarget.shape;
+          break;
+      }
+
+      setScores(prev => ({
+        ...prev,
+        [type]: {
+          correct: prev[type].correct + (isMatch ? 1 : 0),
+          total: prev[type].total + 1
+        }
+      }));
+    });
+
+    // Reset toggles for next turn
+    setToggledControls({
+      position: false,
+      color: false,
+      audio: false,
+      shape: false,
+      number: false
+    });
+  }, [current, sequence, settings.nBack, settings.is3D, settings.audioTypes]);
 
   const handleKeyPress = useCallback((e) => {
     if (!isPlaying) return;
@@ -370,33 +406,60 @@ export default function NBack() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 flex gap-8">
         <div className="flex-1 bg-card rounded-xl overflow-hidden shadow-lg">
-          {settings.is3D ? (
-            <div className="w-full h-[600px]">
-              <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
-                <ambientLight intensity={0.5} />
-                <pointLight position={[10, 10, 10]} />
-                <Grid3D
+          <div className="flex flex-col gap-8">
+            {settings.is3D ? (
+              <div className="w-full h-[500px]">
+                <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
+                  <ambientLight intensity={0.5} />
+                  <pointLight position={[10, 10, 10]} />
+                  <Grid3D
+                    position={current?.position}
+                    color={current?.color || '#ffffff'}
+                    isActive={true}
+                  />
+                  <OrbitControls
+                    enableZoom={false}
+                    autoRotate={!isPlaying}
+                    autoRotateSpeed={1}
+                  />
+                </Canvas>
+              </div>
+            ) : (
+              <div className="h-[500px] flex items-center justify-center">
+                <Grid2D
                   position={current?.position}
-                  color={current?.color || '#ffffff'}
-                  isActive={true}
+                  color={current?.color || '#3498db'}
+                  number={current?.number}
+                  shape={current?.shape}
                 />
-                <OrbitControls
-                  enableZoom={false}
-                  autoRotate={!isPlaying}
-                  autoRotateSpeed={1}
-                />
-              </Canvas>
+              </div>
+            )}
+
+            <div className="flex justify-center gap-4">
+              {Object.entries(settings.stimuli).map(([type, enabled]) => enabled && (
+                <button
+                  key={type}
+                  onClick={() => checkMatch(type)}
+                  className={cn(
+                    "px-6 py-3 rounded-lg font-medium transition-all flex flex-col items-center gap-2",
+                    toggledControls[type]
+                      ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
+                      : "bg-muted hover:bg-muted/80"
+                  )}
+                  disabled={!isPlaying}
+                >
+                  <span className="capitalize">{type}</span>
+                  <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
+                    {type === 'position' ? 'A' :
+                     type === 'color' ? 'S' :
+                     type === 'audio' ? 'D' :
+                     type === 'number' ? 'F' :
+                     'G'}
+                  </kbd>
+                </button>
+              ))}
             </div>
-          ) : (
-            <div className="h-[600px] flex items-center justify-center">
-              <Grid2D
-                position={current?.position}
-                color={current?.color || '#3498db'}
-                number={current?.number}
-                shape={current?.shape}
-              />
-            </div>
-          )}
+          </div>
         </div>
 
         <div className="w-[350px] bg-card rounded-xl p-6 shadow-lg">
@@ -542,16 +605,6 @@ export default function NBack() {
               ))}
             </div>
 
-            <div className="border-t border-border pt-4 space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Controls:</h3>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>Position: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">A</kbd></div>
-                <div>Color: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">S</kbd></div>
-                <div>Audio: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">D</kbd></div>
-                <div>Number: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">F</kbd></div>
-                <div>Shape: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">G</kbd></div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
