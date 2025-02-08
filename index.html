@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/brain.svg" />
+    <link rel="icon" type="image/svg+xml" href="/Brain/brain.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Brain Training</title>
     <!-- Preload critical fonts -->
@@ -24,6 +24,19 @@
     <meta property="og:title" content="Brain Training" />
     <meta property="og:description" content="Advanced brain training exercises including RRT, 3D MOT, and N-Back training." />
     <meta property="og:type" content="website" />
+    <!-- GitHub Pages SPA Redirect -->
+    <script type="text/javascript">
+      (function(l) {
+        if (l.search[1] === '/' ) {
+          var decoded = l.search.slice(1).split('&').map(function(s) { 
+            return s.replace(/~and~/g, '&')
+          }).join('?');
+          window.history.replaceState(null, null,
+              l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        }
+      }(window.location))
+    </script>
     <!-- Critical CSS for initial render -->
     <style>
       /* Minimize content shift during load */
