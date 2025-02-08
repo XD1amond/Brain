@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { Settings } from './Settings';
 
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
@@ -138,7 +139,7 @@ function getNBackType(stimuli) {
 }
 
 export default function NBack() {
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useLocalStorage('nback-settings', {
     is3D: false,
     nBack: 2,
     stimuli: {

@@ -5,6 +5,7 @@ import { Physics, useSphere } from '@react-three/cannon';
 import { motion } from 'framer-motion';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { Room } from './MOT/Room';
 
 function Ball({ position, isHighlighted, isSelectable, onClick, velocity, gameState, isSelected, showingResults, wasTarget }) {
@@ -167,7 +168,7 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selecte
 }
 
 export default function MOT() {
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useLocalStorage('mot-settings', {
     numBalls: 8,
     numTargets: 3,
     rememberTime: 3,

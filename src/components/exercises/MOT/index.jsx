@@ -163,7 +163,7 @@ function SettingSlider({ label, value, onChange, min, max, step = 1 }) {
 }
 
 export default function MOT() {
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useLocalStorage('mot-settings', {
     numBalls: 8,
     numTargets: 3,
     rememberTime: 3, // Time to memorize the highlighted balls

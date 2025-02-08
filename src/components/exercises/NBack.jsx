@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text, Html } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
@@ -212,7 +213,7 @@ function Grid2D({ position, color, number, shape }) {
 }
 
 export default function NBack() {
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useLocalStorage('nback-settings', {
     is3D: false,
     nBack: 2,
     shapeCount: 2,
