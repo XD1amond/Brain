@@ -146,7 +146,7 @@ export default function NBack() {
     nBack: 2,
     shapeCount: 2,
     displayDuration: 3000,
-    autoRotate: true,
+    autoRotate: false,
     audioTypes: {
       tone: true,
       letters: false,
@@ -426,7 +426,7 @@ export default function NBack() {
                   />
                   <OrbitControls
                     enableZoom={false}
-                    autoRotate={settings.autoRotate && !isPlaying}
+                    autoRotate={settings.autoRotate}
                     autoRotateSpeed={1}
                   />
                 </Canvas>
