@@ -217,6 +217,7 @@ export default function NBack() {
     nBack: 2,
     shapeCount: 2,
     displayDuration: 3000,
+    delayDuration: 500,
     autoRotate: false,
     audioTypes: {
       tone: true,
@@ -369,7 +370,8 @@ export default function NBack() {
   useEffect(() => {
     if (!isPlaying) return;
     
-    const interval = setInterval(() => {
+    let timeoutId;
+    const runTurn = () => {
       const newStimulus = generateStimulus();
       setSequence(prev => [...prev, newStimulus]);
       setCurrent(newStimulus);
@@ -377,10 +379,19 @@ export default function NBack() {
       if (settings.stimuli.audio) {
         playSound(newStimulus);
       }
-    }, settings.displayDuration);
+
+      // Clear current stimulus after display duration
+      timeoutId = setTimeout(() => {
+        setCurrent(null);
+        // Wait for configured delay before starting next turn
+        timeoutId = setTimeout(runTurn, settings.delayDuration);
+      }, settings.displayDuration);
+    };
     
-    return () => clearInterval(interval);
-  }, [isPlaying, generateStimulus, playSound]);
+    runTurn();
+    
+    return () => clearTimeout(timeoutId);
+  }, [isPlaying, generateStimulus, playSound, settings.displayDuration]);
 
   const checkMatch = useCallback((type) => {
     if (!current || sequence.length <= settings.nBack) return;
@@ -733,23 +744,45 @@ export default function NBack() {
                 settings.sections?.timing ? "max-h-[500px] opacity-100 scale-100" : "max-h-0 opacity-0 scale-95 overflow-hidden"
               )}>
                 <div className="p-4 space-y-4 bg-muted/20">
-                  <div>
-                    <label className="form-label block mb-2">Display Duration:</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={settings.displayDuration}
-                        onChange={e => setSettings(prev => ({
-                          ...prev,
-                          displayDuration: Math.max(500, parseInt(e.target.value))
-                        }))}
-                        min="500"
-                        max="10000"
-                        step="100"
-                        className="form-input w-24"
-                        disabled={isPlaying}
-                      />
-                      <span className="text-sm text-muted-foreground">milliseconds</span>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="form-label block mb-2">Display Duration:</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={settings.displayDuration}
+                          onChange={e => setSettings(prev => ({
+                            ...prev,
+                            displayDuration: Math.max(500, parseInt(e.target.value))
+                          }))}
+                          min="500"
+                          max="10000"
+                          step="100"
+                          className="form-input w-24"
+                          disabled={isPlaying}
+                        />
+                        <span className="text-sm text-muted-foreground">milliseconds</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="form-label block mb-2">Delay Between Turns:</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={settings.delayDuration}
+                          onChange={e => setSettings(prev => ({
+                            ...prev,
+                            delayDuration: Math.max(0, parseInt(e.target.value))
+                          }))}
+                          min="0"
+                          max="2000"
+                          step="100"
+                          className="form-input w-24"
+                          disabled={isPlaying}
+                        />
+                        <span className="text-sm text-muted-foreground">milliseconds</span>
+                      </div>
                     </div>
                   </div>
                 </div>
