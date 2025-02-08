@@ -6,9 +6,17 @@ import { cn } from '@/lib/utils';
 
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
-const SHAPES = ['triangle', 'square', 'pentagon', 'hexagon', 'heptagon', 'octagon'];
+const SHAPES = ['circle', 'triangle', 'square', 'pentagon', 'hexagon', 'heptagon', 'octagon'];
 
-function Shape({ type, size = 60 }) {
+function Shape({ type, size = 80 }) {
+  if (type === 'circle') {
+    return (
+      <svg width={size} height={size} className="absolute inset-0 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <circle cx={size/2} cy={size/2} r={size/2 - 2} fill="currentColor" className="opacity-50" />
+      </svg>
+    );
+  }
+
   const getPoints = () => {
     const points = [];
     const sides = {
@@ -20,8 +28,11 @@ function Shape({ type, size = 60 }) {
       octagon: 8
     }[type] || 3;
     
+    // For triangle, adjust starting angle to center it
+    const startAngle = type === 'triangle' ? -Math.PI / 2 : -Math.PI / 2;
+    
     for (let i = 0; i < sides; i++) {
-      const angle = (i * 2 * Math.PI / sides) - Math.PI / 2;
+      const angle = (i * 2 * Math.PI / sides) + startAngle;
       points.push([
         size/2 * Math.cos(angle),
         size/2 * Math.sin(angle)
@@ -181,14 +192,29 @@ export default function NBack() {
       stimulus.color = COLORS[Math.floor(Math.random() * COLORS.length)];
     }
     if (settings.stimuli.audio) {
-      if (settings.audioTypes.letters) {
-        stimulus.letter = LETTERS[Math.floor(Math.random() * LETTERS.length)];
-      }
-      if (settings.audioTypes.numbers) {
-        stimulus.number = Math.floor(Math.random() * 9) + 1;
-      }
-      if (settings.audioTypes.tone) {
-        stimulus.tone = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+      // Get all enabled audio types
+      const enabledTypes = Object.entries(settings.audioTypes)
+        .filter(([_, enabled]) => enabled)
+        .map(([type]) => type);
+      
+      if (enabledTypes.length > 0) {
+        // Randomly select one audio type
+        const selectedType = enabledTypes[Math.floor(Math.random() * enabledTypes.length)];
+        
+        switch (selectedType) {
+          case 'letters':
+            stimulus.letter = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+            break;
+          case 'numbers':
+            stimulus.number = Math.floor(Math.random() * 9) + 1;
+            break;
+          case 'tone':
+            stimulus.tone = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+            break;
+        }
+        
+        // Store the selected type to know which audio to play
+        stimulus.selectedAudioType = selectedType;
       }
     }
 
@@ -205,40 +231,51 @@ export default function NBack() {
   }, [settings]);
 
   const playSound = useCallback((stimulus) => {
-    if (settings.audioTypes.tone && stimulus.tone) {
-      if (!audioContext.current) {
-        audioContext.current = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      
-      const oscillator = audioContext.current.createOscillator();
-      const gainNode = audioContext.current.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.current.destination);
-      
-      const baseFrequency = 220;
-      const letterIndex = LETTERS.indexOf(stimulus.tone);
-      oscillator.frequency.value = baseFrequency * Math.pow(1.5, letterIndex);
-      
-      gainNode.gain.value = 0.1;
-      oscillator.start();
-      gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.current.currentTime + 0.5);
-      
-      setTimeout(() => oscillator.stop(), 500);
-    }
+    if (!stimulus.selectedAudioType) return;
 
-    if (settings.audioTypes.letters && stimulus.letter) {
-      const utterance = new SpeechSynthesisUtterance(stimulus.letter);
-      utterance.rate = 1.5;
-      utterance.pitch = 1.2;
-      window.speechSynthesis.speak(utterance);
-    }
+    switch (stimulus.selectedAudioType) {
+      case 'tone':
+        if (!audioContext.current) {
+          audioContext.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        const oscillator = audioContext.current.createOscillator();
+        const gainNode = audioContext.current.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.current.destination);
+        
+        const baseFrequency = 220;
+        const letterIndex = LETTERS.indexOf(stimulus.tone);
+        oscillator.frequency.value = baseFrequency * Math.pow(1.5, letterIndex);
+        
+        gainNode.gain.value = 0.1;
+        oscillator.start();
+        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.current.currentTime + 0.5);
+        
+        setTimeout(() => oscillator.stop(), 500);
+        break;
 
-    if (settings.audioTypes.numbers && stimulus.number) {
-      const utterance = new SpeechSynthesisUtterance(stimulus.number.toString());
-      utterance.rate = 1.5;
-      utterance.pitch = 1.2;
-      window.speechSynthesis.speak(utterance);
+      case 'letters':
+        const letterUtterance = new SpeechSynthesisUtterance(stimulus.letter.toLowerCase());
+        letterUtterance.rate = 0.8;
+        letterUtterance.pitch = 1.0;
+        window.speechSynthesis.speak(letterUtterance);
+        break;
+
+      case 'numbers':
+        // Generate a different number for speaking than what's displayed
+        let spokenNumber;
+        do {
+          spokenNumber = Math.floor(Math.random() * 9) + 1;
+        } while (spokenNumber === stimulus.number);
+        
+        stimulus.spokenNumber = spokenNumber;
+        const numberUtterance = new SpeechSynthesisUtterance(spokenNumber.toString());
+        numberUtterance.rate = 0.8;
+        numberUtterance.pitch = 1.0;
+        window.speechSynthesis.speak(numberUtterance);
+        break;
     }
   }, [settings.audioTypes]);
 
@@ -278,7 +315,7 @@ export default function NBack() {
         isMatch = (
           (settings.audioTypes.tone && current.tone === target.tone) ||
           (settings.audioTypes.letters && current.letter === target.letter) ||
-          (settings.audioTypes.numbers && current.number === target.number)
+          (settings.audioTypes.numbers && current.spokenNumber === target.spokenNumber)
         );
         break;
       case 'number':

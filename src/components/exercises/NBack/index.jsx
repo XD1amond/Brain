@@ -8,6 +8,7 @@ import { Settings } from './Settings';
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
 const SHAPES = [
+  'circle',
   'triangle',
   'square',
   'pentagon',
@@ -16,7 +17,15 @@ const SHAPES = [
   'octagon'
 ];
 
-function Shape({ type, size = 40 }) {
+function Shape({ type, size = 60 }) {
+  if (type === 'circle') {
+    return (
+      <svg width={size} height={size} className="inline-block">
+        <circle cx={size/2} cy={size/2} r={size/2 - 2} fill="currentColor" />
+      </svg>
+    );
+  }
+
   const getPoints = () => {
     const points = [];
     const sides = {
@@ -28,8 +37,11 @@ function Shape({ type, size = 40 }) {
       octagon: 8
     }[type] || 3;
     
+    // For triangle, adjust starting angle to center it
+    const startAngle = type === 'triangle' ? 0 : -Math.PI / 2;
+    
     for (let i = 0; i < sides; i++) {
-      const angle = (i * 2 * Math.PI / sides) - Math.PI / 2;
+      const angle = (i * 2 * Math.PI / sides) + startAngle;
       points.push([
         size/2 * Math.cos(angle),
         size/2 * Math.sin(angle)
@@ -176,32 +188,28 @@ export default function NBack() {
     }
     
     if (settings.stimuli.number) {
-      stimulus.number = Math.floor(Math.random() * 9) + 1;
+      // Generate two different random numbers for display and audio
+      const displayNumber = Math.floor(Math.random() * 9) + 1;
+      let spokenNumber;
+      do {
+        spokenNumber = Math.floor(Math.random() * 9) + 1;
+      } while (spokenNumber === displayNumber);
+      
+      stimulus.number = displayNumber;
+      stimulus.spokenNumber = spokenNumber;
     }
     
     return stimulus;
   }, [settings]);
 
   const playSound = useCallback((letter) => {
-    if (!audioContext.current) {
-      audioContext.current = new (window.AudioContext || window.webkitAudioContext)();
-    }
+    if (!window.speechSynthesis) return;
     
-    const oscillator = audioContext.current.createOscillator();
-    const gainNode = audioContext.current.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.current.destination);
-    
-    const baseFrequency = 220;
-    const letterIndex = LETTERS.indexOf(letter);
-    oscillator.frequency.value = baseFrequency * Math.pow(1.5, letterIndex);
-    
-    gainNode.gain.value = 0.1;
-    oscillator.start();
-    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.current.currentTime + 0.5);
-    
-    setTimeout(() => oscillator.stop(), 500);
+    const utterance = new SpeechSynthesisUtterance(letter.toLowerCase());
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    window.speechSynthesis.speak(utterance);
   }, []);
 
   useEffect(() => {
@@ -214,6 +222,8 @@ export default function NBack() {
       
       if (newStimulus.letter) {
         playSound(newStimulus.letter);
+      } else if (newStimulus.spokenNumber) {
+        playSound(newStimulus.spokenNumber.toString());
       }
     }, 3000);
     
@@ -240,7 +250,7 @@ export default function NBack() {
         isMatch = current.letter === target.letter;
         break;
       case 'number':
-        isMatch = current.number === target.number;
+        isMatch = current.spokenNumber === target.spokenNumber;
         break;
       default:
         return;
