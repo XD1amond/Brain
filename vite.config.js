@@ -4,7 +4,7 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/Brain/',
+  base: process.env.BASE_URL || '/Brain/',
   plugins: [react()],
   server: {
     port: 5173,
