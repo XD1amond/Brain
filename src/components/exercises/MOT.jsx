@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 import { Room } from './MOT/Room';
 
-function Ball({ position, isHighlighted, isSelectable, onClick, velocity, gameState }) {
+function Ball({ position, isHighlighted, isSelectable, onClick, velocity, gameState, isSelected, showingResults, wasTarget }) {
   const [ref, api] = useSphere(() => ({
     mass: 1,
     position,
@@ -95,15 +95,24 @@ function Ball({ position, isHighlighted, isSelectable, onClick, velocity, gameSt
       <meshPhongMaterial
         color={
           gameState === 'ready' && isHighlighted ? '#ff4444' :
-          gameState === 'selection' && isHighlighted ? '#44ff44' :
+          gameState === 'selection' && !showingResults && isSelected ? '#44ff44' :
+          showingResults && isSelected && wasTarget ? '#44ff44' :
+          showingResults && isSelected && !wasTarget ? '#ff4444' :
+          showingResults && !isSelected && wasTarget ? '#ffff44' :
           '#ffffff'
         }
         emissive={
           gameState === 'ready' && isHighlighted ? '#ff4444' :
-          gameState === 'selection' && isHighlighted ? '#44ff44' :
+          gameState === 'selection' && !showingResults && isSelected ? '#44ff44' :
+          showingResults && isSelected && wasTarget ? '#44ff44' :
+          showingResults && isSelected && !wasTarget ? '#ff4444' :
+          showingResults && !isSelected && wasTarget ? '#ffff44' :
           '#000000'
         }
-        emissiveIntensity={isHighlighted ? 0.5 : 0}
+        emissiveIntensity={
+          (gameState === 'ready' && isHighlighted) ||
+          (gameState === 'selection' && (isSelected || showingResults)) ? 0.5 : 0
+        }
         shininess={70}
         specular="#ffffff"
       />
@@ -112,7 +121,7 @@ function Ball({ position, isHighlighted, isSelectable, onClick, velocity, gameSt
 }
 
 
-function Scene({ balls, targetIndices, gameState, onBallClick, velocity }) {
+function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selectedIndices, showingResults }) {
   return (
     <>
       <Environment preset="night" />
@@ -141,14 +150,15 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity }) {
             key={index}
             position={ball.position}
             isHighlighted={
-              gameState === 'ready' || gameState === 'tracking'
-                ? targetIndices.includes(index)
-                : gameState === 'selection' && targetIndices.includes(index)
+              (gameState === 'ready' || gameState === 'tracking') && targetIndices.includes(index)
             }
-            isSelectable={gameState === 'selection'}
+            isSelectable={gameState === 'selection' && !showingResults}
             onClick={() => onBallClick(index)}
             velocity={velocity}
             gameState={gameState}
+            isSelected={selectedIndices.includes(index)}
+            showingResults={showingResults}
+            wasTarget={targetIndices.includes(index)}
           />
         ))}
       </Physics>
@@ -166,6 +176,7 @@ export default function MOT() {
     velocity: 7,
   });
   const [gameState, setGameState] = useState('setup');
+  const [showingResults, setShowingResults] = useState(false);
   const [balls, setBalls] = useState(() => {
     // Initialize balls with random positions
     const initialBalls = [];
@@ -186,6 +197,7 @@ export default function MOT() {
   const [timeLeft, setTimeLeft] = useState(0);
 
   const initializeBalls = () => {
+    setShowingResults(false);
     // Create new balls
     const newBalls = [];
     for (let i = 0; i < settings.numBalls; i++) {
@@ -256,11 +268,17 @@ export default function MOT() {
   };
 
   const checkResults = () => {
-    const correct = selectedIndices.filter(index => 
+    const correct = selectedIndices.filter(index =>
       targetIndices.includes(index)
     ).length;
     setScore(prev => prev + correct);
-    setGameState('results');
+    setShowingResults(true);
+    
+    // Transition to results screen after a delay
+    setTimeout(() => {
+      setGameState('results');
+      setShowingResults(false);
+    }, 2000);
   };
 
   return (
@@ -296,6 +314,8 @@ export default function MOT() {
                 gameState={gameState}
                 onBallClick={handleBallClick}
                 velocity={gameState === 'tracking' ? settings.velocity : 0}
+                selectedIndices={selectedIndices}
+                showingResults={showingResults}
               />
             </Canvas>
           </div>
@@ -471,6 +491,7 @@ export default function MOT() {
               <button
                 onClick={() => {
                   setSelectedIndices([]);
+                  setShowingResults(false);
                   setGameState('setup');
                 }}
                 className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-medium transition-colors"
