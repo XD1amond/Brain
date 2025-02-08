@@ -635,78 +635,80 @@ export default function NBack() {
                 settings.sections?.stimuli ? "max-h-[1000px] opacity-100 scale-100" : "max-h-0 opacity-0 scale-95 overflow-hidden"
               )}>
                 <div className="p-4 space-y-4 bg-muted/20">
-                  <div className="form-group">
+                  <div className="form-group space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Stimuli:</h3>
                     {Object.entries(settings.stimuli).map(([key, value]) => (
-                      <label key={key} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={value}
-                          onChange={e => setSettings(prev => ({
-                            ...prev,
-                            stimuli: {
-                              ...prev.stimuli,
-                              [key]: e.target.checked
-                            }
-                          }))}
-                          className="form-checkbox"
-                          disabled={isPlaying}
-                        />
-                        <span className="capitalize">{key}</span>
-                      </label>
-                    ))}
-                  </div>
-
-                  {/* Shape count indented under shape stimuli */}
-                  {settings.stimuli.shape && (
-                    <div className="mt-2 ml-8 p-3 rounded-lg bg-muted/30">
-                      <label className="form-label block mb-2 text-sm font-medium">Number of Shapes:</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="range"
-                          min="2"
-                          max="6"
-                          value={settings.shapeCount}
-                          onChange={e => setSettings(prev => ({
-                            ...prev,
-                            shapeCount: parseInt(e.target.value)
-                          }))}
-                          className="form-range w-32"
-                          disabled={isPlaying}
-                        />
-                        <span className="text-sm font-medium">{settings.shapeCount}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Audio types indented under audio stimuli */}
-                  {settings.stimuli.audio && (
-                    <div className="mt-2 ml-8 p-3 rounded-lg bg-muted/30 space-y-2">
-                      <div className="text-sm font-medium">Audio Types:</div>
-                      {Object.entries({
-                        tone: 'Tones',
-                        letters: 'Spoken Letters',
-                        numbers: 'Spoken Numbers'
-                      }).map(([type, label]) => (
-                        <label key={type} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                      <div key={key}>
+                        <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                           <input
                             type="checkbox"
-                            checked={settings.audioTypes[type]}
+                            checked={value}
                             onChange={e => setSettings(prev => ({
                               ...prev,
-                              audioTypes: {
-                                ...prev.audioTypes,
-                                [type]: e.target.checked
+                              stimuli: {
+                                ...prev.stimuli,
+                                [key]: e.target.checked
                               }
                             }))}
                             className="form-checkbox"
                             disabled={isPlaying}
                           />
-                          <span className="text-sm">{label}</span>
+                          <span className="capitalize">{key}</span>
                         </label>
-                      ))}
-                    </div>
-                  )}
+                        
+                        {/* Audio types directly under audio */}
+                        {key === 'audio' && value && (
+                          <div className="mt-2 ml-8 p-3 rounded-lg bg-muted/30 space-y-2">
+                            <div className="text-sm font-medium">Audio Types:</div>
+                            {Object.entries({
+                              tone: 'Tones',
+                              letters: 'Spoken Letters',
+                              numbers: 'Spoken Numbers'
+                            }).map(([type, label]) => (
+                              <label key={type} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.audioTypes[type]}
+                                  onChange={e => setSettings(prev => ({
+                                    ...prev,
+                                    audioTypes: {
+                                      ...prev.audioTypes,
+                                      [type]: e.target.checked
+                                    }
+                                  }))}
+                                  className="form-checkbox"
+                                  disabled={isPlaying}
+                                />
+                                <span className="text-sm">{label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Shape count directly under shape */}
+                        {key === 'shape' && value && (
+                          <div className="mt-2 ml-8 p-3 rounded-lg bg-muted/30">
+                            <label className="form-label block mb-2 text-sm font-medium">Number of Shapes:</label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="range"
+                                min="2"
+                                max="6"
+                                value={settings.shapeCount}
+                                onChange={e => setSettings(prev => ({
+                                  ...prev,
+                                  shapeCount: parseInt(e.target.value)
+                                }))}
+                                className="form-range w-32"
+                                disabled={isPlaying}
+                              />
+                              <span className="text-sm font-medium">{settings.shapeCount}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
