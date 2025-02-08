@@ -146,6 +146,7 @@ export default function NBack() {
     nBack: 2,
     shapeCount: 2,
     displayDuration: 3000,
+    autoRotate: true,
     audioTypes: {
       tone: true,
       letters: false,
@@ -425,7 +426,7 @@ export default function NBack() {
                   />
                   <OrbitControls
                     enableZoom={false}
-                    autoRotate={!isPlaying}
+                    autoRotate={settings.autoRotate && !isPlaying}
                     autoRotateSpeed={1}
                   />
                 </Canvas>
@@ -505,6 +506,22 @@ export default function NBack() {
                     />
                     <span>3D Grid</span>
                   </label>
+
+                  {settings.is3D && (
+                    <label className="flex items-center space-x-3 p-3 ml-6 rounded-lg hover:bg-muted/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={settings.autoRotate}
+                        onChange={e => setSettings(prev => ({
+                          ...prev,
+                          autoRotate: e.target.checked
+                        }))}
+                        className="form-checkbox"
+                        disabled={isPlaying}
+                      />
+                      <span>Auto-rotate</span>
+                    </label>
+                  )}
 
                   <div>
                     <label className="form-label">N-Back Level:</label>
