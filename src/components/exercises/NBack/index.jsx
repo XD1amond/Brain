@@ -7,6 +7,43 @@ import { Settings } from './Settings';
 
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+const SHAPES = [
+  'triangle',
+  'square',
+  'pentagon',
+  'hexagon',
+  'heptagon',
+  'octagon'
+];
+
+function Shape({ type, size = 40 }) {
+  const getPoints = () => {
+    const points = [];
+    const sides = {
+      triangle: 3,
+      square: 4,
+      pentagon: 5,
+      hexagon: 6,
+      heptagon: 7,
+      octagon: 8
+    }[type] || 3;
+    
+    for (let i = 0; i < sides; i++) {
+      const angle = (i * 2 * Math.PI / sides) - Math.PI / 2;
+      points.push([
+        size/2 * Math.cos(angle),
+        size/2 * Math.sin(angle)
+      ]);
+    }
+    return points.map(([x, y]) => `${x + size/2},${y + size/2}`).join(' ');
+  };
+
+  return (
+    <svg width={size} height={size} className="inline-block">
+      <polygon points={getPoints()} fill="currentColor" />
+    </svg>
+  );
+}
 
 function Grid3D({ position, color, isActive }) {
   return (
@@ -49,26 +86,26 @@ function Grid3D({ position, color, isActive }) {
   );
 }
 
-function Grid2D({ position, color, number }) {
+function Grid2D({ position, color, number, shape }) {
   return (
     <div className="grid grid-cols-3 gap-2 w-[300px] h-[300px] mx-auto">
       {Array(9).fill().map((_, i) => {
         const x = i % 3;
         const y = Math.floor(i / 3);
-        const active = position && 
-          x === position[0] && 
+        const active = position &&
+          x === position[0] &&
           y === position[1];
         
         return (
           <div
             key={i}
             className={cn(
-              "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl font-bold",
+              "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl font-bold h-[90px]",
               active ? "bg-primary text-primary-foreground" : "border border-border bg-card/50 text-muted-foreground dark:bg-muted"
             )}
             style={active ? { '--active-color': color } : {}}
           >
-            {active && number}
+            {active && (shape ? <Shape type={shape} /> : number)}
           </div>
         );
       })}

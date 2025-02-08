@@ -6,6 +6,36 @@ import { cn } from '@/lib/utils';
 
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+const SHAPES = ['triangle', 'square', 'pentagon', 'hexagon', 'heptagon', 'octagon'];
+
+function Shape({ type, size = 60 }) {
+  const getPoints = () => {
+    const points = [];
+    const sides = {
+      triangle: 3,
+      square: 4,
+      pentagon: 5,
+      hexagon: 6,
+      heptagon: 7,
+      octagon: 8
+    }[type] || 3;
+    
+    for (let i = 0; i < sides; i++) {
+      const angle = (i * 2 * Math.PI / sides) - Math.PI / 2;
+      points.push([
+        size/2 * Math.cos(angle),
+        size/2 * Math.sin(angle)
+      ]);
+    }
+    return points.map(([x, y]) => `${x + size/2},${y + size/2}`).join(' ');
+  };
+
+  return (
+    <svg width={size} height={size} className="absolute inset-0 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+      <polygon points={getPoints()} fill="currentColor" className="opacity-50" />
+    </svg>
+  );
+}
 
 function getNBackType(stimuli) {
   const activeCount = Object.values(stimuli).filter(Boolean).length;
@@ -60,27 +90,38 @@ function Grid3D({ position, color, isActive }) {
   );
 }
 
-function Grid2D({ position, color, number }) {
+function Grid2D({ position, color, number, shape }) {
   return (
     <div className="grid grid-cols-3 gap-2 w-[300px] h-[300px] mx-auto">
       {Array(9).fill().map((_, i) => {
         const x = i % 3;
         const y = Math.floor(i / 3);
-        const active = position && 
-          x === position[0] && 
+        const active = position &&
+          x === position[0] &&
           y === position[1];
         
         return (
           <div
             key={i}
             className={cn(
-              "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl",
+              "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl h-[90px]",
               active ? "bg-[color:var(--active-color)] text-white" : "bg-card dark:bg-muted border border-border",
               !active && "text-transparent"
             )}
             style={{ '--active-color': color }}
           >
-            {active && number}
+            {active && (
+              <div className="relative w-full h-full flex items-center justify-center">
+                {shape && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Shape type={shape} />
+                  </div>
+                )}
+                <div className="relative z-10 font-bold text-3xl" style={{ color: color }}>
+                  {number}
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
@@ -92,6 +133,12 @@ export default function NBack() {
   const [settings, setSettings] = useState({
     is3D: false,
     nBack: 2,
+    shapeCount: 2,
+    audioTypes: {
+      tone: true,
+      letters: false,
+      numbers: false
+    },
     stimuli: {
       position: true,
       color: false,
@@ -133,39 +180,67 @@ export default function NBack() {
     if (settings.stimuli.color) {
       stimulus.color = COLORS[Math.floor(Math.random() * COLORS.length)];
     }
-    
     if (settings.stimuli.audio) {
-      stimulus.letter = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+      if (settings.audioTypes.letters) {
+        stimulus.letter = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+      }
+      if (settings.audioTypes.numbers) {
+        stimulus.number = Math.floor(Math.random() * 9) + 1;
+      }
+      if (settings.audioTypes.tone) {
+        stimulus.tone = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+      }
     }
-    
-    if (settings.stimuli.number) {
+
+    // Always generate a number for display in shapes or when number stimulus is enabled
+    if (settings.stimuli.number || settings.stimuli.shape) {
       stimulus.number = Math.floor(Math.random() * 9) + 1;
+    }
+
+    if (settings.stimuli.shape && !settings.is3D) {
+      stimulus.shape = SHAPES[Math.floor(Math.random() * Math.min(settings.shapeCount, SHAPES.length))];
     }
     
     return stimulus;
   }, [settings]);
 
-  const playSound = useCallback((letter) => {
-    if (!audioContext.current) {
-      audioContext.current = new (window.AudioContext || window.webkitAudioContext)();
+  const playSound = useCallback((stimulus) => {
+    if (settings.audioTypes.tone && stimulus.tone) {
+      if (!audioContext.current) {
+        audioContext.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      
+      const oscillator = audioContext.current.createOscillator();
+      const gainNode = audioContext.current.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.current.destination);
+      
+      const baseFrequency = 220;
+      const letterIndex = LETTERS.indexOf(stimulus.tone);
+      oscillator.frequency.value = baseFrequency * Math.pow(1.5, letterIndex);
+      
+      gainNode.gain.value = 0.1;
+      oscillator.start();
+      gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.current.currentTime + 0.5);
+      
+      setTimeout(() => oscillator.stop(), 500);
     }
-    
-    const oscillator = audioContext.current.createOscillator();
-    const gainNode = audioContext.current.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.current.destination);
-    
-    const baseFrequency = 220;
-    const letterIndex = LETTERS.indexOf(letter);
-    oscillator.frequency.value = baseFrequency * Math.pow(1.5, letterIndex);
-    
-    gainNode.gain.value = 0.1;
-    oscillator.start();
-    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.current.currentTime + 0.5);
-    
-    setTimeout(() => oscillator.stop(), 500);
-  }, []);
+
+    if (settings.audioTypes.letters && stimulus.letter) {
+      const utterance = new SpeechSynthesisUtterance(stimulus.letter);
+      utterance.rate = 1.5;
+      utterance.pitch = 1.2;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    if (settings.audioTypes.numbers && stimulus.number) {
+      const utterance = new SpeechSynthesisUtterance(stimulus.number.toString());
+      utterance.rate = 1.5;
+      utterance.pitch = 1.2;
+      window.speechSynthesis.speak(utterance);
+    }
+  }, [settings.audioTypes]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -175,8 +250,8 @@ export default function NBack() {
       setSequence(prev => [...prev, newStimulus]);
       setCurrent(newStimulus);
       
-      if (newStimulus.letter) {
-        playSound(newStimulus.letter);
+      if (settings.stimuli.audio) {
+        playSound(newStimulus);
       }
     }, 3000);
     
@@ -200,10 +275,17 @@ export default function NBack() {
         isMatch = current.color === target.color;
         break;
       case 'audio':
-        isMatch = current.letter === target.letter;
+        isMatch = (
+          (settings.audioTypes.tone && current.tone === target.tone) ||
+          (settings.audioTypes.letters && current.letter === target.letter) ||
+          (settings.audioTypes.numbers && current.number === target.number)
+        );
         break;
       case 'number':
         isMatch = current.number === target.number;
+        break;
+      case 'shape':
+        isMatch = current.shape === target.shape;
         break;
       default:
         return;
@@ -233,6 +315,9 @@ export default function NBack() {
         break;
       case 'f':
         if (settings.stimuli.number) checkMatch('number');
+        break;
+      case 'g':
+        if (settings.stimuli.shape) checkMatch('shape');
         break;
       default:
         break;
@@ -271,6 +356,7 @@ export default function NBack() {
                 position={current?.position}
                 color={current?.color || '#3498db'}
                 number={current?.number}
+                shape={current?.shape}
               />
             </div>
           )}
@@ -294,6 +380,55 @@ export default function NBack() {
                 />
                 <span>3D Grid</span>
               </label>
+
+              {settings.stimuli.shape && !settings.is3D && (
+                <div className="pl-8">
+                  <label className="form-label block mb-2 text-sm">Number of Shapes:</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="2"
+                      max="6"
+                      value={settings.shapeCount}
+                      onChange={e => setSettings(prev => ({
+                        ...prev,
+                        shapeCount: parseInt(e.target.value)
+                      }))}
+                      className="form-range w-32"
+                      disabled={isPlaying}
+                    />
+                    <span className="text-sm font-medium">{settings.shapeCount}</span>
+                  </div>
+                </div>
+              )}
+
+              {settings.stimuli.audio && (
+                <div className="pl-8 space-y-2">
+                  <div className="text-sm font-medium text-muted-foreground">Audio Types:</div>
+                  {Object.entries({
+                    tone: 'Tones',
+                    letters: 'Spoken Letters',
+                    numbers: 'Spoken Numbers'
+                  }).map(([type, label]) => (
+                    <label key={type} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={settings.audioTypes[type]}
+                        onChange={e => setSettings(prev => ({
+                          ...prev,
+                          audioTypes: {
+                            ...prev.audioTypes,
+                            [type]: e.target.checked
+                          }
+                        }))}
+                        className="form-checkbox"
+                        disabled={isPlaying}
+                      />
+                      <span className="text-sm">{label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
 
               <div>
                 <label className="form-label">N-Back Level:</label>
@@ -377,6 +512,7 @@ export default function NBack() {
                 <div>Color: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">S</kbd></div>
                 <div>Audio: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">D</kbd></div>
                 <div>Number: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">F</kbd></div>
+                <div>Shape: <kbd className="px-2 py-1 bg-muted/50 dark:bg-muted text-foreground dark:text-foreground rounded-md border border-border shadow-sm">G</kbd></div>
               </div>
             </div>
           </div>

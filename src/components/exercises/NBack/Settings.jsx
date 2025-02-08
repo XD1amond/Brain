@@ -31,20 +31,42 @@ export function Settings({ settings, onSettingsChange }) {
           <span className="font-medium">3D Grid</span>
         </label>
 
-        <div className="form-group">
-          <label className="form-label">N-Back Level</label>
-          <select
-            value={settings.nBack}
-            onChange={(e) => onSettingsChange(prev => ({
-              ...prev,
-              nBack: parseInt(e.target.value)
-            }))}
-            className="form-select"
-          >
-            {[1, 2, 3, 4, 5].map(n => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
+        <div className="space-y-4">
+          <div className="form-group">
+            <label className="form-label">N-Back Level</label>
+            <select
+              value={settings.nBack}
+              onChange={(e) => onSettingsChange(prev => ({
+                ...prev,
+                nBack: parseInt(e.target.value)
+              }))}
+              className="form-select"
+            >
+              {[1, 2, 3, 4, 5].map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+
+          {settings.stimuli.shape && !settings.is3D && (
+            <div className="form-group">
+              <label className="form-label">Number of Shapes</label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="2"
+                  max="6"
+                  value={settings.shapeCount || 2}
+                  onChange={(e) => onSettingsChange(prev => ({
+                    ...prev,
+                    shapeCount: parseInt(e.target.value)
+                  }))}
+                  className="form-range flex-1"
+                />
+                <span className="text-sm font-medium">{settings.shapeCount || 2}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-2">
