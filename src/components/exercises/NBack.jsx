@@ -494,6 +494,24 @@ export default function NBack() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 flex gap-8">
+        <div className="w-[200px] bg-card rounded-xl p-6 shadow-lg">
+          <div className="space-y-2">
+            {Object.entries(scores).map(([type, score]) => (
+              settings.stimuli[type] && (
+                <div key={type} className="flex flex-col text-sm">
+                  <span className="capitalize text-muted-foreground">{type}:</span>
+                  <span className="font-medium text-foreground">
+                    {score.correct}/{score.total}
+                    {score.total > 0 &&
+                      ` (${Math.round(score.correct/score.total * 100)}%)`
+                    }
+                  </span>
+                </div>
+              )
+            ))}
+          </div>
+        </div>
+        
         <div className="flex-1 bg-card rounded-xl overflow-hidden shadow-lg">
           <div className="flex flex-col gap-8">
             {settings.is3D ? (
@@ -808,22 +826,6 @@ export default function NBack() {
             >
               {isPlaying ? 'Stop' : 'Start'}
             </button>
-
-            <div className="space-y-2">
-              {Object.entries(scores).map(([type, score]) => (
-                settings.stimuli[type] && (
-                  <div key={type} className="flex justify-between items-center text-sm">
-                    <span className="capitalize text-muted-foreground">{type}:</span>
-                    <span className="font-medium text-foreground">
-                      {score.correct}/{score.total}
-                      {score.total > 0 && 
-                        ` (${Math.round(score.correct/score.total * 100)}%)`
-                      }
-                    </span>
-                  </div>
-                )
-              ))}
-            </div>
 
           </div>
         </div>
