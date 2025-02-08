@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Text } from '@react-three/drei';
+import { OrbitControls, Text, Html } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -60,16 +60,35 @@ function getNBackType(stimuli) {
   return types[activeCount] || '';
 }
 
-function Grid3D({ position, color, isActive }) {
+function CubeFace({ position, rotation, color, number, shape, isActive }) {
+  return (
+    <group position={position} rotation={rotation}>
+      <Html transform scale={0.41} style={{ width: '180px', height: '180px', pointerEvents: 'none' }}>
+        <div className="relative w-full h-full flex items-center justify-center bg-[color:var(--active-color)]" style={{ '--active-color': color }}>
+          {shape && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Shape type={shape} size={130} />
+            </div>
+          )}
+          <div className="relative z-10 font-bold text-5xl text-white">
+            {number || (isActive ? '●' : '')}
+          </div>
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+function Grid3D({ position, color, isActive, number, shape }) {
   return (
     <group>
       {Array(27).fill().map((_, i) => {
         const x = (i % 3) - 1;
         const y = Math.floor((i / 3) % 3) - 1;
         const z = Math.floor(i / 9) - 1;
-        const active = position && 
-          x === position[0] && 
-          y === position[1] && 
+        const active = position &&
+          x === position[0] &&
+          y === position[1] &&
           z === position[2];
         
         return (
@@ -84,15 +103,67 @@ function Grid3D({ position, color, isActive }) {
               />
             </mesh>
             {active && (
-              <Text
-                position={[0, 0, 0.91]}
-                fontSize={0.5}
-                color={color}
-                anchorX="center"
-                anchorY="middle"
-              >
-                {isActive ? '●' : ''}
-              </Text>
+              <>
+                {/* Front face */}
+                <CubeFace
+                  position={[0, 0, 0.91]}
+                  rotation={[0, 0, 0]}
+                  color={color}
+                  number={number}
+                  shape={shape}
+                  isActive={isActive}
+                />
+
+                {/* Back face */}
+                <CubeFace
+                  position={[0, 0, -0.91]}
+                  rotation={[0, Math.PI, 0]}
+                  color={color}
+                  number={number}
+                  shape={shape}
+                  isActive={isActive}
+                />
+
+                {/* Right face */}
+                <CubeFace
+                  position={[0.91, 0, 0]}
+                  rotation={[0, Math.PI / 2, 0]}
+                  color={color}
+                  number={number}
+                  shape={shape}
+                  isActive={isActive}
+                />
+
+                {/* Left face */}
+                <CubeFace
+                  position={[-0.91, 0, 0]}
+                  rotation={[0, -Math.PI / 2, 0]}
+                  color={color}
+                  number={number}
+                  shape={shape}
+                  isActive={isActive}
+                />
+
+                {/* Top face */}
+                <CubeFace
+                  position={[0, 0.91, 0]}
+                  rotation={[-Math.PI / 2, 0, 0]}
+                  color={color}
+                  number={number}
+                  shape={shape}
+                  isActive={isActive}
+                />
+
+                {/* Bottom face */}
+                <CubeFace
+                  position={[0, -0.91, 0]}
+                  rotation={[Math.PI / 2, 0, 0]}
+                  color={color}
+                  number={number}
+                  shape={shape}
+                  isActive={isActive}
+                />
+              </>
             )}
           </group>
         );
@@ -239,7 +310,7 @@ export default function NBack() {
       stimulus.number = Math.floor(Math.random() * 9) + 1;
     }
 
-    if (settings.stimuli.shape && !settings.is3D) {
+    if (settings.stimuli.shape) {
       stimulus.shape = SHAPES[Math.floor(Math.random() * Math.min(settings.shapeCount, SHAPES.length))];
     }
     
@@ -423,6 +494,8 @@ export default function NBack() {
                     position={current?.position}
                     color={current?.color || '#ffffff'}
                     isActive={true}
+                    number={current?.number}
+                    shape={current?.shape}
                   />
                   <OrbitControls
                     enableZoom={false}
@@ -585,7 +658,7 @@ export default function NBack() {
                   </div>
 
                   {/* Shape count indented under shape stimuli */}
-                  {settings.stimuli.shape && !settings.is3D && (
+                  {settings.stimuli.shape && (
                     <div className="mt-2 ml-8 p-3 rounded-lg bg-muted/30">
                       <label className="form-label block mb-2 text-sm font-medium">Number of Shapes:</label>
                       <div className="flex items-center gap-2">
