@@ -145,6 +145,7 @@ export default function NBack() {
     is3D: false,
     nBack: 2,
     shapeCount: 2,
+    displayDuration: 3000,
     audioTypes: {
       tone: true,
       letters: false,
@@ -156,6 +157,11 @@ export default function NBack() {
       audio: true,
       shape: false,
       number: false
+    },
+    sections: {
+      nback: true,
+      stimuli: true,
+      timing: false
     }
   });
 
@@ -299,7 +305,7 @@ export default function NBack() {
       if (settings.stimuli.audio) {
         playSound(newStimulus);
       }
-    }, 3000);
+    }, settings.displayDuration);
     
     return () => clearInterval(interval);
   }, [isPlaying, generateStimulus, playSound]);
@@ -465,107 +471,196 @@ export default function NBack() {
         <div className="w-[350px] bg-card rounded-xl p-6 shadow-lg">
           <h2 className="text-2xl font-bold mb-6">{getNBackType(settings.stimuli)} N-Back</h2>
           
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={settings.is3D}
-                  onChange={e => setSettings(prev => ({
-                    ...prev,
-                    is3D: e.target.checked
-                  }))}
-                  className="form-checkbox"
-                  disabled={isPlaying}
-                />
-                <span>3D Grid</span>
-              </label>
-
-              {settings.stimuli.shape && !settings.is3D && (
-                <div className="pl-8">
-                  <label className="form-label block mb-2 text-sm">Number of Shapes:</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min="2"
-                      max="6"
-                      value={settings.shapeCount}
-                      onChange={e => setSettings(prev => ({
-                        ...prev,
-                        shapeCount: parseInt(e.target.value)
-                      }))}
-                      className="form-range w-32"
-                      disabled={isPlaying}
-                    />
-                    <span className="text-sm font-medium">{settings.shapeCount}</span>
-                  </div>
-                </div>
-              )}
-
-              {settings.stimuli.audio && (
-                <div className="pl-8 space-y-2">
-                  <div className="text-sm font-medium text-muted-foreground">Audio Types:</div>
-                  {Object.entries({
-                    tone: 'Tones',
-                    letters: 'Spoken Letters',
-                    numbers: 'Spoken Numbers'
-                  }).map(([type, label]) => (
-                    <label key={type} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={settings.audioTypes[type]}
-                        onChange={e => setSettings(prev => ({
-                          ...prev,
-                          audioTypes: {
-                            ...prev.audioTypes,
-                            [type]: e.target.checked
-                          }
-                        }))}
-                        className="form-checkbox"
-                        disabled={isPlaying}
-                      />
-                      <span className="text-sm">{label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              <div>
-                <label className="form-label">N-Back Level:</label>
-                <input
-                  type="number"
-                  value={settings.nBack}
-                  onChange={e => setSettings(prev => ({
-                    ...prev,
-                    nBack: Math.max(1, parseInt(e.target.value))
-                  }))}
-                  min="1"
-                  max="5"
-                  className="form-input w-20"
-                  disabled={isPlaying}
-                />
-              </div>
-
-              <div className="form-group">
-                <h3 className="text-sm font-medium text-muted-foreground">Stimuli:</h3>
-                {Object.entries(settings.stimuli).map(([key, value]) => (
-                  <label key={key} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+          <div className="space-y-4">
+            {/* N-back Settings Section */}
+            <div className="border rounded-lg overflow-hidden hover:border-primary/50 transition-colors">
+              <button
+                className="w-full p-4 text-left font-medium flex justify-between items-center hover:bg-muted/50 transition-colors"
+                onClick={() => setSettings(prev => ({
+                  ...prev,
+                  sections: { ...prev.sections, nback: !prev.sections?.nback }
+                }))}
+              >
+                <span>N-Back Settings</span>
+                <span className="text-muted-foreground transition-transform duration-300 ease-in-out"
+                      style={{ transform: settings.sections?.nback ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  ▼
+                </span>
+              </button>
+              <div className={cn(
+                "transition-all duration-300 ease-in-out origin-top",
+                settings.sections?.nback ? "max-h-[500px] opacity-100 scale-100" : "max-h-0 opacity-0 scale-95 overflow-hidden"
+              )}>
+                <div className="p-4 space-y-4 bg-muted/20">
+                  <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                     <input
                       type="checkbox"
-                      checked={value}
+                      checked={settings.is3D}
                       onChange={e => setSettings(prev => ({
                         ...prev,
-                        stimuli: {
-                          ...prev.stimuli,
-                          [key]: e.target.checked
-                        }
+                        is3D: e.target.checked
                       }))}
                       className="form-checkbox"
                       disabled={isPlaying}
                     />
-                    <span className="capitalize">{key}</span>
+                    <span>3D Grid</span>
                   </label>
-                ))}
+
+                  <div>
+                    <label className="form-label">N-Back Level:</label>
+                    <input
+                      type="number"
+                      value={settings.nBack}
+                      onChange={e => setSettings(prev => ({
+                        ...prev,
+                        nBack: Math.max(1, parseInt(e.target.value))
+                      }))}
+                      min="1"
+                      max="5"
+                      className="form-input w-20"
+                      disabled={isPlaying}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Stimuli Settings Section */}
+            <div className="border rounded-lg overflow-hidden hover:border-primary/50 transition-colors">
+              <button
+                className="w-full p-4 text-left font-medium flex justify-between items-center hover:bg-muted/50 transition-colors"
+                onClick={() => setSettings(prev => ({
+                  ...prev,
+                  sections: { ...prev.sections, stimuli: !prev.sections?.stimuli }
+                }))}
+              >
+                <span>Stimuli Settings</span>
+                <span className="text-muted-foreground transition-transform duration-300 ease-in-out"
+                      style={{ transform: settings.sections?.stimuli ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  ▼
+                </span>
+              </button>
+              <div className={cn(
+                "transition-all duration-300 ease-in-out origin-top",
+                settings.sections?.stimuli ? "max-h-[1000px] opacity-100 scale-100" : "max-h-0 opacity-0 scale-95 overflow-hidden"
+              )}>
+                <div className="p-4 space-y-4 bg-muted/20">
+                  <div className="form-group">
+                    <h3 className="text-sm font-medium text-muted-foreground">Stimuli:</h3>
+                    {Object.entries(settings.stimuli).map(([key, value]) => (
+                      <label key={key} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={value}
+                          onChange={e => setSettings(prev => ({
+                            ...prev,
+                            stimuli: {
+                              ...prev.stimuli,
+                              [key]: e.target.checked
+                            }
+                          }))}
+                          className="form-checkbox"
+                          disabled={isPlaying}
+                        />
+                        <span className="capitalize">{key}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Shape count indented under shape stimuli */}
+                  {settings.stimuli.shape && !settings.is3D && (
+                    <div className="mt-2 ml-8 p-3 rounded-lg bg-muted/30">
+                      <label className="form-label block mb-2 text-sm font-medium">Number of Shapes:</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min="2"
+                          max="6"
+                          value={settings.shapeCount}
+                          onChange={e => setSettings(prev => ({
+                            ...prev,
+                            shapeCount: parseInt(e.target.value)
+                          }))}
+                          className="form-range w-32"
+                          disabled={isPlaying}
+                        />
+                        <span className="text-sm font-medium">{settings.shapeCount}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Audio types indented under audio stimuli */}
+                  {settings.stimuli.audio && (
+                    <div className="mt-2 ml-8 p-3 rounded-lg bg-muted/30 space-y-2">
+                      <div className="text-sm font-medium">Audio Types:</div>
+                      {Object.entries({
+                        tone: 'Tones',
+                        letters: 'Spoken Letters',
+                        numbers: 'Spoken Numbers'
+                      }).map(([type, label]) => (
+                        <label key={type} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={settings.audioTypes[type]}
+                            onChange={e => setSettings(prev => ({
+                              ...prev,
+                              audioTypes: {
+                                ...prev.audioTypes,
+                                [type]: e.target.checked
+                              }
+                            }))}
+                            className="form-checkbox"
+                            disabled={isPlaying}
+                          />
+                          <span className="text-sm">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Timing Settings Section */}
+            <div className="border rounded-lg overflow-hidden hover:border-primary/50 transition-colors">
+              <button
+                className="w-full p-4 text-left font-medium flex justify-between items-center hover:bg-muted/50 transition-colors"
+                onClick={() => setSettings(prev => ({
+                  ...prev,
+                  sections: { ...prev.sections, timing: !prev.sections?.timing }
+                }))}
+              >
+                <span>Timing Settings</span>
+                <span className="text-muted-foreground transition-transform duration-300 ease-in-out"
+                      style={{ transform: settings.sections?.timing ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  ▼
+                </span>
+              </button>
+              <div className={cn(
+                "transition-all duration-300 ease-in-out origin-top",
+                settings.sections?.timing ? "max-h-[500px] opacity-100 scale-100" : "max-h-0 opacity-0 scale-95 overflow-hidden"
+              )}>
+                <div className="p-4 space-y-4 bg-muted/20">
+                  <div>
+                    <label className="form-label block mb-2">Display Duration:</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={settings.displayDuration}
+                        onChange={e => setSettings(prev => ({
+                          ...prev,
+                          displayDuration: Math.max(500, parseInt(e.target.value))
+                        }))}
+                        min="500"
+                        max="10000"
+                        step="100"
+                        className="form-input w-24"
+                        disabled={isPlaying}
+                      />
+                      <span className="text-sm text-muted-foreground">milliseconds</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
