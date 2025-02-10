@@ -233,7 +233,7 @@ export default function MOT() {
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev <= 1) {
+        if (prev <= 0) {
           // Transition states
           if (gameState === 'ready') {
             setGameState('tracking');
@@ -274,6 +274,7 @@ export default function MOT() {
     ).length;
     setScore(prev => prev + correct);
     setShowingResults(true);
+    setTimeLeft(0);
     setGameState('results');
   };
 
