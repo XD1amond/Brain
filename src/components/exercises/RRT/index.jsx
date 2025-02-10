@@ -39,11 +39,9 @@ export default function RRT() {
     
     comparisonPremises: 0,
     comparisonTimer: 30,
-    comparison180Mode: false,
     
     temporalPremises: 0,
     temporalTimer: 30,
-    temporal180Mode: false,
     
     directionPremises: 0,
     directionTimer: 30,

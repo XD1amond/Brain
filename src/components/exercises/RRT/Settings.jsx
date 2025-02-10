@@ -313,15 +313,6 @@ export function Settings({ settings, onSettingsChange }) {
                     className="form-input w-20"
                   />
                 </div>
-                <label className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    checked={settings.comparison180Mode}
-                    onChange={e => handleChange('comparison180Mode', e.target.checked)}
-                    className="form-checkbox"
-                  />
-                  <span className="font-medium">180° Mode</span>
-                </label>
               </div>
             )}
           </div>
@@ -350,15 +341,6 @@ export function Settings({ settings, onSettingsChange }) {
                     className="form-input w-20"
                   />
                 </div>
-                <label className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    checked={settings.temporal180Mode}
-                    onChange={e => handleChange('temporal180Mode', e.target.checked)}
-                    className="form-checkbox"
-                  />
-                  <span className="font-medium">180° Mode</span>
-                </label>
               </div>
             )}
           </div>

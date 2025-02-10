@@ -1,3 +1,4 @@
+
 import { directionNames } from './constants/directions';
 import { nouns } from './constants/nouns';
 import { adjectives } from './constants/adjectives';
@@ -126,7 +127,7 @@ const generateComparisonQuestion = (settings) => {
   let b = Math.floor(Math.random() * items.length);
   while (a === b) b = Math.floor(Math.random() * items.length);
 
-  const isValid = settings.comparison180Mode ? (a > b) : (a < b);
+  const isValid = a < b;
   const conclusion = settings.enableNegation && Math.random() > 0.5
     ? `<span class="subject">${items[a]}</span> is <span class="is-negated">${isValid ? 'more' : 'less'}</span> than <span class="subject">${items[b]}</span>`
     : `<span class="subject">${items[a]}</span> is ${isValid ? 'less' : 'more'} than <span class="subject">${items[b]}</span>`;
@@ -165,7 +166,7 @@ const generateTemporalQuestion = (settings) => {
   let b = Math.floor(Math.random() * items.length);
   while (a === b) b = Math.floor(Math.random() * items.length);
 
-  const isValid = settings.temporal180Mode ? (a > b) : (a < b);
+  const isValid = a < b;
   const conclusion = settings.enableNegation && Math.random() > 0.5
     ? `<span class="subject">${items[a]}</span> is <span class="is-negated">${isValid ? 'after' : 'before'}</span> <span class="subject">${items[b]}</span>`
     : `<span class="subject">${items[a]}</span> is ${isValid ? 'before' : 'after'} <span class="subject">${items[b]}</span>`;
