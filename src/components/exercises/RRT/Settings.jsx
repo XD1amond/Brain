@@ -85,7 +85,7 @@ export function Settings({ settings, onSettingsChange }) {
       </div>
 
       <div className="space-y-4">
-        <SettingsGroup title="General" defaultExpanded={true}>
+        <SettingsGroup title="General" defaultExpanded={false}>
           <div className="form-group">
             <label className="form-label">Default Premises</label>
             <input
@@ -102,7 +102,7 @@ export function Settings({ settings, onSettingsChange }) {
           </div>
         </SettingsGroup>
 
-        <SettingsGroup title="Timings" defaultExpanded={true}>
+        <SettingsGroup title="Timings" defaultExpanded={false}>
           <div className="grid gap-4">
             <div className="form-group">
               <label className="form-label">General Timer (sec)</label>
@@ -191,7 +191,7 @@ export function Settings({ settings, onSettingsChange }) {
           </div>
         </SettingsGroup>
 
-        <SettingsGroup title="Word Types" defaultExpanded={true}>
+        <SettingsGroup title="Word Types" defaultExpanded={false}>
           {!hasWordType && (
             <div className="text-sm text-destructive mb-2">
               At least one word type must be enabled
@@ -286,7 +286,7 @@ export function Settings({ settings, onSettingsChange }) {
           </label>
         </SettingsGroup>
 
-        <SettingsGroup title="Question Types" defaultExpanded={true}>
+        <SettingsGroup title="Question Types" defaultExpanded={false}>
           {!hasQuestionType && (
             <div className="text-sm text-destructive mb-2">
               At least one question type must be enabled
@@ -427,7 +427,7 @@ export function Settings({ settings, onSettingsChange }) {
           </div>
         </SettingsGroup>
 
-        <SettingsGroup title="Misc" defaultExpanded={true}>
+        <SettingsGroup title="Misc" defaultExpanded={false}>
           <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
             <input
               type="checkbox"
