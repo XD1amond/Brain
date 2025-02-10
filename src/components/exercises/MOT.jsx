@@ -274,12 +274,7 @@ export default function MOT() {
     ).length;
     setScore(prev => prev + correct);
     setShowingResults(true);
-    
-    // Transition to results screen after a delay
-    setTimeout(() => {
-      setGameState('results');
-      setShowingResults(false);
-    }, 2000);
+    setGameState('results');
   };
 
   return (
