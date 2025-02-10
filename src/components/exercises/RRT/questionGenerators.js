@@ -1,4 +1,7 @@
-import { nouns, adjectives, emojis, directionNames } from './constants';
+import { directionNames } from './constants/directions';
+import { nouns } from './constants/nouns';
+import { adjectives } from './constants/adjectives';
+import { emojis } from './constants/emojis';
 
 // Word generation utilities
 const generateRandomString = (length = 3) => {
