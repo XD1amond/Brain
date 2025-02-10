@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { generateQuestion } from './questionGenerators';
+import { generateQuestion } from './generators';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { Settings } from './Settings';
 
