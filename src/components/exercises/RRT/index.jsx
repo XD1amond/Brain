@@ -6,6 +6,15 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { Settings } from './Settings';
 
 export default function RRT() {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [history, setHistory] = useState([]);
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
   const [settings, setSettings] = useLocalStorage('rrt-settings', {
     // General Settings
     globalPremises: 2,
@@ -58,16 +67,21 @@ export default function RRT() {
     enableStroopEffect: false
   });
 
-  // Validate settings on load
+  // Validate settings
+  const hasWordType =
+    settings.useNonsenseWords ||
+    settings.useGarbageWords ||
+    settings.useMeaningfulWords ||
+    settings.useEmoji;
+
+  const hasQuestionType = Object.values(settings.questionTypes).some(Boolean);
+
+  // Disable start if settings are invalid
+  const canStart = hasWordType && hasQuestionType;
+
+  // Validate settings on load and ensure defaults
   useEffect(() => {
     setSettings(prev => {
-      // Ensure at least one word type is enabled
-      const hasWordType = 
-        prev.useNonsenseWords ||
-        prev.useGarbageWords ||
-        prev.useMeaningfulWords ||
-        prev.useEmoji;
-
       if (!hasWordType) {
         return {
           ...prev,
@@ -76,8 +90,6 @@ export default function RRT() {
         };
       }
 
-      // Ensure at least one question type is enabled
-      const hasQuestionType = Object.values(prev.questionTypes).some(Boolean);
       if (!hasQuestionType) {
         return {
           ...prev,
@@ -90,16 +102,7 @@ export default function RRT() {
 
       return prev;
     });
-  }, []);
-
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [carouselIndex, setCarouselIndex] = useState(0);
-  const [history, setHistory] = useState([]);
-  const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  }, [hasWordType, hasQuestionType]);
 
   const generateNewQuestion = useCallback(() => {
     const question = generateQuestion(settings);
@@ -112,6 +115,13 @@ export default function RRT() {
     setIsTimerRunning(true);
     setIsTransitioning(false);
   }, [settings]);
+
+  // Generate initial question on mount
+  useEffect(() => {
+    if (!currentQuestion && canStart) {
+      generateNewQuestion();
+    }
+  }, [canStart, currentQuestion, generateNewQuestion]);
 
   useEffect(() => {
     if (!isPlaying || !isTimerRunning) return;
@@ -192,18 +202,6 @@ export default function RRT() {
     "bg-card rounded-xl p-8 shadow-lg relative"
   );
 
-  // Validate current settings
-  const hasWordType = 
-    settings.useNonsenseWords ||
-    settings.useGarbageWords ||
-    settings.useMeaningfulWords ||
-    settings.useEmoji;
-
-  const hasQuestionType = Object.values(settings.questionTypes).some(Boolean);
-
-  // Disable start if settings are invalid
-  const canStart = hasWordType && hasQuestionType;
-
   return (
     <div className={questionClasses}>
       <div className="container mx-auto px-4 py-8">
@@ -239,9 +237,12 @@ export default function RRT() {
                 )}
               </div>
               
-              <div className={cn("transition-opacity", !isPlaying && "opacity-50")}>
+              <div className={cn(
+                "transition-all duration-300",
+                !isPlaying && "opacity-50 blur-xl"
+              )}>
                 <AnimatePresence mode="wait">
-                  {isPlaying && currentQuestion && settings.enableCarouselMode ? (
+                  {currentQuestion && settings.enableCarouselMode ? (
                     <motion.div
                       key={carouselIndex}
                       initial={{ opacity: 0 }}
@@ -293,7 +294,7 @@ export default function RRT() {
                       )}
                     </motion.div>
                   ) : (
-                    isPlaying && currentQuestion && (
+                    currentQuestion && (
                       <motion.div
                         key="full-display"
                         initial={{ opacity: 0 }}
@@ -392,36 +393,34 @@ export default function RRT() {
           </div>
 
           <div className="space-y-6">
-            {isPlaying && (
-              <div className="bg-card rounded-xl p-6 shadow-lg">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold">Score</h2>
-                  <span className="text-3xl font-bold text-primary">{score}</span>
+            <div className="bg-card rounded-xl p-6 shadow-lg">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">Score</h2>
+                <span className="text-3xl font-bold text-primary">{score}</span>
+              </div>
+              <div className="space-y-4">
+                <div className="p-4 bg-primary/5 rounded-lg">
+                  <h3 className="font-medium mb-2">Current Streak</h3>
+                  <p className="text-2xl font-bold">
+                    {history.findIndex(item => !item.isCorrect) === -1
+                      ? history.length
+                      : history.findIndex(item => !item.isCorrect)}
+                  </p>
                 </div>
-                <div className="space-y-4">
-                  <div className="p-4 bg-primary/5 rounded-lg">
-                    <h3 className="font-medium mb-2">Current Streak</h3>
-                    <p className="text-2xl font-bold">
-                      {history.findIndex(item => !item.isCorrect) === -1
-                        ? history.length
-                        : history.findIndex(item => !item.isCorrect)}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-primary/5 rounded-lg">
-                    <h3 className="font-medium mb-2">Average Time</h3>
-                    <p className="text-2xl font-bold">
-                      {history.length > 0
-                        ? `${Math.round(
-                            history.reduce((acc, item) => acc + item.responseTime, 0) /
-                              history.length /
-                              1000
-                          )}s`
-                        : '0s'}
-                    </p>
-                  </div>
+                <div className="p-4 bg-primary/5 rounded-lg">
+                  <h3 className="font-medium mb-2">Average Time</h3>
+                  <p className="text-2xl font-bold">
+                    {history.length > 0
+                      ? `${Math.round(
+                          history.reduce((acc, item) => acc + item.responseTime, 0) /
+                            history.length /
+                            1000
+                        )}s`
+                      : '0s'}
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
 
             <Settings settings={settings} onSettingsChange={setSettings} />
           </div>
