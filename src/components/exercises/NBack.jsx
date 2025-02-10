@@ -221,8 +221,8 @@ export default function NBack() {
     delayDuration: 500,
     autoRotate: false,
     audioTypes: {
-      tone: true,
-      letters: false,
+      tone: false,
+      letters: true,
       numbers: false
     },
     stimuli: {
