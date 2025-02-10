@@ -105,59 +105,88 @@ export function Settings({ settings, onSettingsChange }) {
         <SettingsGroup title="Timings" defaultExpanded={true}>
           <div className="grid gap-4">
             <div className="form-group">
-              <label className="form-label">Distinction Timer (sec)</label>
+              <label className="form-label">General Timer (sec)</label>
               <input
                 type="number"
                 min="5"
+                max="60"
+                value={settings.generalTimer}
+                onChange={e => handleChange('generalTimer', parseInt(e.target.value))}
+                className="form-input w-20"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Used when individual timers are set to 0
+              </p>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Distinction Timer (sec)</label>
+              <input
+                type="number"
+                min="0"
                 max="60"
                 value={settings.distinctionTimer}
                 onChange={e => handleChange('distinctionTimer', parseInt(e.target.value))}
                 className="form-input w-20"
               />
+              <p className="text-sm text-muted-foreground mt-1">
+                Set to 0 to use general timer
+              </p>
             </div>
             <div className="form-group">
               <label className="form-label">Comparison Timer (sec)</label>
               <input
                 type="number"
-                min="5"
+                min="0"
                 max="60"
                 value={settings.comparisonTimer}
                 onChange={e => handleChange('comparisonTimer', parseInt(e.target.value))}
                 className="form-input w-20"
               />
+              <p className="text-sm text-muted-foreground mt-1">
+                Set to 0 to use general timer
+              </p>
             </div>
             <div className="form-group">
               <label className="form-label">Temporal Timer (sec)</label>
               <input
                 type="number"
-                min="5"
+                min="0"
                 max="60"
                 value={settings.temporalTimer}
                 onChange={e => handleChange('temporalTimer', parseInt(e.target.value))}
                 className="form-input w-20"
               />
+              <p className="text-sm text-muted-foreground mt-1">
+                Set to 0 to use general timer
+              </p>
             </div>
             <div className="form-group">
               <label className="form-label">Space 2D Timer (sec)</label>
               <input
                 type="number"
-                min="5"
+                min="0"
                 max="60"
                 value={settings.directionTimer}
                 onChange={e => handleChange('directionTimer', parseInt(e.target.value))}
                 className="form-input w-20"
               />
+              <p className="text-sm text-muted-foreground mt-1">
+                Set to 0 to use general timer
+              </p>
             </div>
             <div className="form-group">
               <label className="form-label">Space 3D Timer (sec)</label>
               <input
                 type="number"
-                min="5"
+                min="0"
                 max="60"
                 value={settings.direction3DTimer}
                 onChange={e => handleChange('direction3DTimer', parseInt(e.target.value))}
                 className="form-input w-20"
               />
+              <p className="text-sm text-muted-foreground mt-1">
+                Set to 0 to use general timer
+              </p>
             </div>
           </div>
         </SettingsGroup>

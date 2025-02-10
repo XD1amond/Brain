@@ -9,6 +9,7 @@ export default function RRT() {
   const [settings, setSettings] = useLocalStorage('rrt-settings', {
     // General Settings
     globalPremises: 2,
+    generalTimer: 30,
 
     // Word Types
     useNonsenseWords: false,
@@ -35,19 +36,19 @@ export default function RRT() {
 
     // Question Type Settings
     distinctionPremises: 0, // 0 means use global
-    distinctionTimer: 30,
+    distinctionTimer: 0,
     
     comparisonPremises: 0,
-    comparisonTimer: 30,
+    comparisonTimer: 0,
     
     temporalPremises: 0,
-    temporalTimer: 30,
+    temporalTimer: 0,
     
     directionPremises: 0,
-    directionTimer: 30,
+    directionTimer: 0,
     
     direction3DPremises: 0,
-    direction3DTimer: 30,
+    direction3DTimer: 0,
 
     // Misc Settings
     enableCarouselMode: false,
@@ -106,7 +107,7 @@ export default function RRT() {
     setCurrentQuestion(question);
     setCarouselIndex(0);
     
-    const timerDuration = settings[`${question.type}Timer`] || 30;
+    const timerDuration = settings[`${question.type}Timer`] || settings.generalTimer || 30;
     setTimeLeft(timerDuration);
     setIsTimerRunning(true);
     setIsTransitioning(false);
@@ -172,7 +173,7 @@ export default function RRT() {
       userAnswer: 'timeout',
       isCorrect: false,
       answeredAt: Date.now(),
-      responseTime: settings[`${currentQuestion.type}Timer`] * 1000
+      responseTime: (settings[`${currentQuestion.type}Timer`] || settings.generalTimer || 30) * 1000
     };
     
     requestAnimationFrame(() => {
@@ -232,7 +233,7 @@ export default function RRT() {
                   <div className="h-1 bg-muted rounded-full overflow-hidden flex-1">
                     <div
                       className="h-full bg-primary transition-[width] duration-1000 ease-linear"
-                      style={{ width: `${(timeLeft / settings[`${currentQuestion.type}Timer`]) * 100}%` }}
+                      style={{ width: `${(timeLeft / (settings[`${currentQuestion.type}Timer`] || settings.generalTimer)) * 100}%` }}
                     />
                   </div>
                 )}
