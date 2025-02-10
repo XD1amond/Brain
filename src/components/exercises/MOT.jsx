@@ -485,16 +485,28 @@ export default function MOT() {
                   /{settings.numTargets}
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  setSelectedIndices([]);
-                  setShowingResults(false);
-                  setGameState('setup');
-                }}
-                className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-medium transition-colors"
-              >
-                Try Again
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    setSelectedIndices([]);
+                    setShowingResults(false);
+                    initializeBalls();
+                  }}
+                  className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-medium transition-colors"
+                >
+                  Try Again
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedIndices([]);
+                    setShowingResults(false);
+                    setGameState('setup');
+                  }}
+                  className="w-full py-2 px-4 bg-muted hover:bg-muted/90 text-muted-foreground rounded-md font-medium transition-colors"
+                >
+                  Return to Settings
+                </button>
+              </div>
             </div>
           )}
         </div>
