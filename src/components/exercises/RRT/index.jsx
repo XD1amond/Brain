@@ -62,7 +62,7 @@ export default function RRT() {
     // Misc Settings
     enableCarouselMode: false,
     enableNegation: false,
-    removeNegationExplainer: false,
+    removeNegationExplainer: true,
     enableMeta: false,
     enableStroopEffect: false
   });

@@ -481,16 +481,6 @@ export function Settings({ settings, onSettingsChange }) {
           </label>
         </SettingsGroup>
 
-        <div className="p-4 bg-primary/5 rounded-lg">
-          <h4 className="font-medium mb-2">Tips</h4>
-          <ul className="text-sm text-muted-foreground space-y-2">
-            <li>• Start with meaningful words before using nonsense or garbage words</li>
-            <li>• Use carousel mode for better focus on each premise</li>
-            <li>• Enable negation and meta relations for advanced practice</li>
-            <li>• Mix different question types for varied practice</li>
-            <li>• Use the Stroop effect to challenge your focus</li>
-          </ul>
-        </div>
       </div>
     </div>
   );
