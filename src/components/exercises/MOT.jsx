@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { Room } from './MOT/Room';
+import { Settings } from './MOT/Settings';
 
 function Ball({ position, isHighlighted, isSelectable, onClick, velocity, gameState, isSelected, showingResults, wasTarget }) {
   const [ref, api] = useSphere(() => ({
@@ -318,7 +319,7 @@ export default function MOT() {
           </div>
         </div>
 
-        <div className="w-[350px] bg-card rounded-xl p-6 shadow-lg">
+        <div className="w-[350px]">
           <h2 className="text-2xl font-bold mb-6">3D Multiple Object Tracking</h2>
           
           {gameState === 'setup' && (
@@ -330,100 +331,7 @@ export default function MOT() {
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div className="form-group">
-                  <label className="form-label">Number of Balls</label>
-                  <input
-                    type="number"
-                    value={settings.numBalls}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      numBalls: Math.max(4, Math.min(20, parseInt(e.target.value)))
-                    }))}
-                    min="4"
-                    max="20"
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Target Balls</label>
-                  <input
-                    type="number"
-                    value={settings.numTargets}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      numTargets: Math.max(1, Math.min(
-                        settings.numBalls - 1,
-                        parseInt(e.target.value)
-                      ))
-                    }))}
-                    min="1"
-                    max={settings.numBalls - 1}
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Tracking Time (s)</label>
-                  <input
-                    type="number"
-                    value={settings.trackingTime}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      trackingTime: Math.max(5, Math.min(30, parseInt(e.target.value)))
-                    }))}
-                    min="5"
-                    max="30"
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Remember Time (s)</label>
-                  <input
-                    type="number"
-                    value={settings.rememberTime}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      rememberTime: Math.max(1, Math.min(10, parseInt(e.target.value)))
-                    }))}
-                    min="1"
-                    max="10"
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Selection Time (s)</label>
-                  <input
-                    type="number"
-                    value={settings.selectionTime}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      selectionTime: Math.max(3, Math.min(10, parseInt(e.target.value)))
-                    }))}
-                    min="3"
-                    max="10"
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Ball Speed</label>
-                  <input
-                    type="number"
-                    value={settings.velocity}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      velocity: Math.max(1, Math.min(10, parseInt(e.target.value)))
-                    }))}
-                    min="1"
-                    max="10"
-                    className="form-input"
-                  />
-                </div>
-              </div>
+              <Settings settings={settings} onSettingsChange={setSettings} isPlaying={gameState !== 'setup'} />
 
               <button
                 onClick={initializeBalls}
