@@ -4,6 +4,7 @@ import { OrbitControls, Text, Html } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import { Settings } from './NBack/Settings';
 
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
@@ -214,6 +215,7 @@ function Grid2D({ position, color, number, shape }) {
 }
 
 export default function NBack() {
+  const { recordSession } = useAnalytics();
   const [settings, setSettings] = useLocalStorage('nback-settings', {
     is3D: false,
     nBack: 2,
@@ -580,6 +582,26 @@ export default function NBack() {
             onClick={() => {
               if (isPlaying) {
                 setIsPlaying(false);
+                
+                // Calculate overall percentage correct across all enabled stimuli
+                const enabledScores = Object.entries(scores)
+                  .filter(([type]) => settings.stimuli[type]);
+                
+                const totalCorrect = enabledScores.reduce((sum, [_, score]) => sum + score.correct, 0);
+                const totalAttempts = enabledScores.reduce((sum, [_, score]) => sum + score.total, 0);
+                const percentageCorrect = totalAttempts > 0 ? (totalCorrect / totalAttempts) * 100 : 0;
+
+                // Record analytics
+                recordSession({
+                  exercise: 'nback',
+                  duration: Math.round((sequence.length * (settings.displayDuration + settings.delayDuration)) / 1000 / 60), // Convert to minutes
+                  metrics: {
+                    nBackLevel: settings.nBack,
+                    percentageCorrect
+                  }
+                });
+
+                // Reset game state
                 setSequence([]);
                 setCurrent(null);
               } else {

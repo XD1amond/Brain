@@ -1,105 +1,54 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { getDateIntervals, formatDateLabel } from '@/lib/dateUtils';
 
-const tabs = [
-  { id: 'general', name: 'General', description: 'Overall training progress and statistics' },
-  { id: 'rrt', name: 'RRT', description: 'Reasonal Relational Training metrics' },
-  { id: 'mot', name: '3D MOT', description: 'Multiple Object Tracking performance' },
-  { id: 'nback', name: 'N-Back', description: 'Working Memory Training statistics' },
-  { id: 'ufov', name: 'UFOV', description: 'Visual Processing Speed metrics' }
-];
-
-const timePeriods = [
-  { id: 'week', name: 'Last Week' },
-  { id: 'month', name: 'Last Month' },
-  { id: '3months', name: 'Last 3 Months' },
-  { id: 'year', name: 'Last Year' },
-  { id: 'all', name: 'All Time' }
-];
-
-function LineGraph({ title, color = "primary", maxValue = 100, unit = "", selectedPeriod = "week" }) {
+function LineGraph({ title, color = "primary", maxValue = 100, unit = "", selectedPeriod = "week", metric, exercise }) {
   const [hoveredPoint, setHoveredPoint] = useState(null);
-  
-  // Helper function to get date intervals based on time period
-  const getDateIntervals = () => {
-    // Get the current date from the system
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const { analytics } = useAnalytics();
 
-    switch (selectedPeriod) {
-      case 'week':
-        return Array.from({ length: 7 }, (_, i) => {
-          const date = new Date(startOfDay);
-          date.setDate(date.getDate() - (6 - i));
-          return date;
-        });
-      case 'month':
-        return Array.from({ length: 6 }, (_, i) => {
-          const date = new Date(startOfDay);
-          date.setDate(date.getDate() - (30 - i * 6));
-          return date;
-        });
-      case '3months':
-        return Array.from({ length: 6 }, (_, i) => {
-          const date = new Date(startOfDay);
-          date.setDate(date.getDate() - (90 - i * 18));
-          return date;
-        });
-      case 'year':
-        return Array.from({ length: 6 }, (_, i) => {
-          const date = new Date(startOfDay);
-          date.setMonth(date.getMonth() - (12 - i * 2));
-          return date;
-        });
-      default: // all time - show last 2 years up to current month
-        const intervals = [];
-        for (let i = 0; i < 6; i++) {
-          const date = new Date(startOfDay);
-          // Start from 24 months ago, increment by 5 months each time, with the last point being current month
-          const monthsAgo = i === 5 ? 0 : 24 - (i * 5);
-          date.setMonth(date.getMonth() - monthsAgo);
-          intervals.push(date);
-        }
-        return intervals;
+  // Get real data points from analytics
+  const dates = getDateIntervals(selectedPeriod);
+  const dataPoints = dates.map(date => {
+    const nextDate = new Date(date);
+    if (selectedPeriod === 'today') {
+      nextDate.setHours(date.getHours() + 4); // Add 4 hours for today's intervals
+    } else {
+      nextDate.setDate(nextDate.getDate() + 1); // Add 1 day for other periods
     }
-  };
+    
+    // Find sessions within this date's range and for the specified exercise if any
+    const sessions = analytics.sessions.filter(session =>
+      session.date >= date.getTime() &&
+      session.date < nextDate.getTime() &&
+      (!exercise || session.exercise === exercise)
+    );
 
-  // Format date label based on time period
-  const formatDateLabel = (date) => {
-    switch (selectedPeriod) {
-      case 'week':
-        return date.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 3);
-      case 'month':
-        return date.getDate();
-      case '3months':
-        return `${date.toLocaleDateString(undefined, { month: 'short' }).slice(0, 3)} ${date.getDate()}`;
-      case 'year':
-        return date.toLocaleDateString(undefined, { month: 'short' }).slice(0, 3);
-      default:
-        return `${date.toLocaleDateString(undefined, { month: 'short' }).slice(0, 3)} '${date.getFullYear().toString().slice(2)}`;
+    // Calculate average value for the metric
+    let value = 0;
+    if (sessions.length > 0) {
+      value = sessions.reduce((sum, session) => sum + session.metrics[metric], 0) / sessions.length;
     }
-  };
 
-  // Generate sample data points
-  const dates = getDateIntervals();
-  const dataPoints = dates.map(date => ({
-    x: date.getTime(),
-    y: Math.round(Math.random() * maxValue * 0.7),
-    date
-  }));
+    return {
+      x: date.getTime(),
+      y: Math.round(value),
+      date
+    };
+  });
 
   // Calculate actual min and max values
-  const values = dataPoints.map(p => p.y);
-  const actualMax = Math.max(...values);
-  const actualMin = Math.min(...values);
-  const range = actualMax - actualMin;
+  const values = dataPoints.map(p => p.y).filter(y => !isNaN(y));
+  const actualMax = values.length > 0 ? Math.max(...values, 0) : maxValue; // Use maxValue if no valid data
+  const actualMin = values.length > 0 ? Math.min(...values, 0) : 0;
+  const range = Math.max(actualMax - actualMin, 1); // Ensure at least 1 range
   
   // Add padding to the range (10% on top and bottom)
   const paddingValue = range * 0.1;
-  const displayMax = Math.ceil((actualMax + paddingValue) / 5) * 5;
-  const displayMin = Math.floor((actualMin - paddingValue) / 5) * 5;
-  const displayRange = displayMax - displayMin;
+  const displayMax = Math.max(Math.ceil((actualMax + paddingValue) / 5) * 5, maxValue * 0.2); // At least 20% of maxValue
+  const displayMin = Math.max(Math.floor((actualMin - paddingValue) / 5) * 5, 0); // Never below 0
+  const displayRange = Math.max(displayMax - displayMin, 1); // Ensure at least 1 range
 
   // Calculate scales
   const padding = 40;
@@ -109,12 +58,17 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
   const graphHeight = height - padding * 2;
 
   // Create path from data points with dynamic scaling
-  const points = dataPoints.map((point, i) => ({
-    x: padding + (i * graphWidth) / (dataPoints.length - 1),
-    y: padding + graphHeight - ((point.y - displayMin) / displayRange) * graphHeight
-  }));
+  const points = dataPoints.map((point, i) => {
+    const x = padding + (i * graphWidth) / Math.max(dataPoints.length - 1, 1);
+    const y = isNaN(point.y) ? padding + graphHeight : // Default to bottom of graph if NaN
+      padding + graphHeight - (Math.max(0, Math.min(1, (point.y - displayMin) / displayRange)) * graphHeight);
+    return { x, y: isNaN(y) ? padding + graphHeight : y }; // Extra safety check
+  });
 
-  const pathD = `M${points.map(p => `${p.x},${p.y}`).join(' L')}`;
+  // Filter out points with NaN values and create path
+  const validPoints = points.filter(p => !isNaN(p.y));
+  const pathD = validPoints.length > 0 ?
+    `M${validPoints.map(p => `${p.x},${p.y}`).join(' L')}` : '';
 
   // Format date for display
   const formatDate = (date) => {
@@ -171,7 +125,7 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
                 textAnchor="middle"
                 className="text-xs fill-muted-foreground"
               >
-                {formatDateLabel(point.date)}
+                {formatDateLabel(point.date, selectedPeriod)}
               </text>
             ))}
 
@@ -186,7 +140,7 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
 
             {/* Area under the line */}
             <path
-              d={`${pathD} L${width - padding},${height - padding} L${padding},${height - padding} Z`}
+              d={pathD ? `${pathD} L${width - padding},${height - padding} L${padding},${height - padding} Z` : ''}
               fill={`hsl(var(--${color}))`}
               className="opacity-10"
             />
@@ -235,11 +189,7 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
                       textAnchor="middle"
                       className="text-[10px] fill-muted-foreground"
                     >
-                      {dataPoints[i].date.toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
+                      {formatDate(dataPoints[i].date)}
                     </text>
                   </g>
                 )}
@@ -252,12 +202,50 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
   );
 }
 
+const tabs = [
+  { id: 'general', name: 'General', description: 'Overall training progress and statistics' },
+  { id: 'rrt', name: 'RRT', description: 'Reasonal Relational Training metrics' },
+  { id: 'mot', name: '3D MOT', description: 'Multiple Object Tracking performance' },
+  { id: 'nback', name: 'N-Back', description: 'Working Memory Training statistics' },
+  { id: 'ufov', name: 'UFOV', description: 'Visual Processing Speed metrics' }
+];
+
+const timePeriods = [
+  { id: 'today', name: 'Today' },
+  { id: 'week', name: 'Last Week' },
+  { id: 'month', name: 'Last Month' },
+  { id: '3months', name: 'Last 3 Months' },
+  { id: 'year', name: 'Last Year' },
+  { id: 'all', name: 'All Time' }
+];
+
 function RRTContent({ selectedPeriod }) {
   return (
     <div className="space-y-6">
-      <LineGraph title="Premises Over Time" color="primary" maxValue={10} unit="" selectedPeriod={selectedPeriod} />
-      <LineGraph title="Average Time per Answer" color="orange" maxValue={60} unit="s" selectedPeriod={selectedPeriod} />
-      <LineGraph title="Average Percentage Correct" color="green" maxValue={100} unit="%" selectedPeriod={selectedPeriod} />
+      <LineGraph
+        title="Premises Over Time"
+        color="primary"
+        maxValue={10}
+        unit=""
+        selectedPeriod={selectedPeriod}
+        metric="premisesCount"
+      />
+      <LineGraph
+        title="Average Time per Answer"
+        color="orange"
+        maxValue={60}
+        unit="s"
+        selectedPeriod={selectedPeriod}
+        metric="timePerAnswer"
+      />
+      <LineGraph
+        title="Average Percentage Correct"
+        color="green"
+        maxValue={100}
+        unit="%"
+        selectedPeriod={selectedPeriod}
+        metric="percentageCorrect"
+      />
     </div>
   );
 }
@@ -265,9 +253,30 @@ function RRTContent({ selectedPeriod }) {
 function MOTContent({ selectedPeriod }) {
   return (
     <div className="space-y-6">
-      <LineGraph title="Average Percentage Correct" color="green" maxValue={100} unit="%" selectedPeriod={selectedPeriod} />
-      <LineGraph title="Average Total Balls" color="blue" maxValue={20} unit="" selectedPeriod={selectedPeriod} />
-      <LineGraph title="Average Tracking Balls" color="purple" maxValue={10} unit="" selectedPeriod={selectedPeriod} />
+      <LineGraph
+        title="Average Percentage Correct"
+        color="green"
+        maxValue={100}
+        unit="%"
+        selectedPeriod={selectedPeriod}
+        metric="percentageCorrect"
+      />
+      <LineGraph
+        title="Average Total Balls"
+        color="blue"
+        maxValue={20}
+        unit=""
+        selectedPeriod={selectedPeriod}
+        metric="totalBalls"
+      />
+      <LineGraph
+        title="Average Tracking Balls"
+        color="purple"
+        maxValue={10}
+        unit=""
+        selectedPeriod={selectedPeriod}
+        metric="trackingBalls"
+      />
     </div>
   );
 }
@@ -312,8 +321,22 @@ function NBackContent({ selectedPeriod }) {
           </select>
         </div>
       </div>
-      <LineGraph title="N-Back Level Progress" color="yellow" maxValue={9} unit="" selectedPeriod={selectedPeriod} />
-      <LineGraph title="Percentage Correct Over Time" color="green" maxValue={100} unit="%" selectedPeriod={selectedPeriod} />
+      <LineGraph
+        title="N-Back Level Progress"
+        color="yellow"
+        maxValue={5}
+        unit=""
+        selectedPeriod={selectedPeriod}
+        metric="nBackLevel"
+      />
+      <LineGraph
+        title="Percentage Correct Over Time"
+        color="green"
+        maxValue={100}
+        unit="%"
+        selectedPeriod={selectedPeriod}
+        metric="percentageCorrect"
+      />
     </div>
   );
 }
@@ -321,14 +344,29 @@ function NBackContent({ selectedPeriod }) {
 function UFOVContent({ selectedPeriod }) {
   return (
     <div className="space-y-6">
-      <LineGraph title="Visual Processing Speed" color="orange" maxValue={500} unit="ms" selectedPeriod={selectedPeriod} />
-      <LineGraph title="Accuracy Over Time" color="green" maxValue={100} unit="%" selectedPeriod={selectedPeriod} />
+      <LineGraph
+        title="Visual Processing Speed"
+        color="orange"
+        maxValue={500}
+        unit="ms"
+        selectedPeriod={selectedPeriod}
+        metric="processingSpeed"
+      />
+      <LineGraph
+        title="Accuracy Over Time"
+        color="green"
+        maxValue={100}
+        unit="%"
+        selectedPeriod={selectedPeriod}
+        metric="percentageCorrect"
+      />
     </div>
   );
 }
 
 function TimeGraph({ selectedPeriod }) {
   const [selectedExercise, setSelectedExercise] = useState('total');
+  const { analytics } = useAnalytics();
   const exercises = [
     { id: 'total', name: 'Total' },
     { id: 'rrt', name: 'RRT' },
@@ -339,17 +377,32 @@ function TimeGraph({ selectedPeriod }) {
 
   // Generate different max values based on selected exercise
   const getMaxValue = () => {
-    switch (selectedExercise) {
-      case 'total':
-        return 240; // 4 hours max
-      case 'rrt':
-      case 'mot':
-      case 'nback':
-      case 'ufov':
-        return 120; // 2 hours max for individual exercises
-      default:
-        return 240;
-    }
+    // Get actual max value from data
+    const dates = getDateIntervals(selectedPeriod);
+    const dataPoints = dates.map(date => {
+      const nextDate = new Date(date);
+      if (selectedPeriod === 'today') {
+        nextDate.setHours(date.getHours() + 1); // Add 1 hour for today's intervals
+      } else {
+        nextDate.setDate(nextDate.getDate() + 1); // Add 1 day for other periods
+      }
+      
+      // Find sessions within this date's range and for the specified exercise
+      const sessions = analytics.sessions.filter(session =>
+        session.date >= date.getTime() &&
+        session.date < nextDate.getTime() &&
+        (!selectedExercise || selectedExercise === 'total' || session.exercise === selectedExercise)
+      );
+
+      // Calculate total duration in minutes
+      const duration = sessions.reduce((sum, session) => sum + (session.duration || 0), 0);
+      return isNaN(duration) ? 0 : duration;
+    });
+
+    const validDataPoints = dataPoints.filter(value => !isNaN(value));
+    const maxValue = validDataPoints.length > 0 ? Math.max(...validDataPoints, 1) : 1; // Ensure at least 1 minute
+    // Round up to nearest multiple of 30 minutes
+    return Math.ceil(maxValue / 30) * 30;
   };
 
   return (
@@ -382,19 +435,41 @@ function TimeGraph({ selectedPeriod }) {
         maxValue={getMaxValue()}
         unit="min"
         selectedPeriod={selectedPeriod}
+        metric="duration"
+        exercise={selectedExercise === 'total' ? null : selectedExercise}
       />
     </div>
   );
 }
 
 function GeneralContent({ selectedPeriod }) {
-  const totalTime = "24h 35m";
-  const breakdown = [
-    { name: 'RRT', time: '8h 15m', percentage: 33 },
-    { name: '3D MOT', time: '6h 45m', percentage: 27 },
-    { name: 'N-Back', time: '7h 20m', percentage: 30 },
-    { name: 'UFOV', time: '2h 15m', percentage: 10 }
-  ];
+  const { getTrainingTime, getTimeBreakdown } = useAnalytics();
+  
+  // Get start and end dates based on selected period
+  const now = new Date();
+  const startDate = new Date(now);
+  switch (selectedPeriod) {
+    case 'today':
+      startDate.setHours(0, 0, 0, 0);
+      break;
+    case 'week':
+      startDate.setDate(startDate.getDate() - 7);
+      break;
+    case 'month':
+      startDate.setMonth(startDate.getMonth() - 1);
+      break;
+    case '3months':
+      startDate.setMonth(startDate.getMonth() - 3);
+      break;
+    case 'year':
+      startDate.setFullYear(startDate.getFullYear() - 1);
+      break;
+    default: // all time
+      startDate.setFullYear(2000); // effectively all time
+  }
+
+  const totalTime = getTrainingTime(null, startDate.getTime(), now.getTime());
+  const breakdown = getTimeBreakdown(startDate.getTime(), now.getTime());
 
   return (
     <div className="space-y-8">
