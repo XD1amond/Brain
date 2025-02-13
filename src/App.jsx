@@ -7,6 +7,7 @@ import Home from './components/Home';
 import RRT from './components/exercises/RRT';
 import MOT from './components/exercises/MOT';
 import NBack from './components/exercises/NBack';
+import Analytics from './components/Analytics';
 import { ANIMATION_VARIANTS, TRANSITION_SPRING } from './lib/utils';
 
 const pageTransitionVariants = {
@@ -137,6 +138,16 @@ function App() {
               <ErrorBoundary>
                 <PageTransition>
                   <ComingSoon />
+                </PageTransition>
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              <ErrorBoundary>
+                <PageTransition>
+                  <Analytics />
                 </PageTransition>
               </ErrorBoundary>
             }

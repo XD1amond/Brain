@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ThemeSwitcher } from './ThemeProvider';
 
-const navItems = [
+const exerciseItems = [
   {
     name: 'RRT',
     path: '/rrt',
@@ -47,8 +48,22 @@ const navItems = [
   }
 ];
 
+const navItems = [
+  {
+    name: 'Analytics',
+    path: '/analytics',
+    description: 'Performance Tracking',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-6 h-6">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    )
+  }
+];
+
 export function Layout({ children }) {
   const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,6 +77,66 @@ export function Layout({ children }) {
           </Link>
 
           <div className="flex items-center space-x-4">
+            <div className="relative">
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={cn(
+                  "relative px-4 py-2 rounded-md transition-colors flex items-center space-x-2",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  exerciseItems.some(item => location.pathname === item.path)
+                    ? "text-primary font-medium"
+                    : "text-muted-foreground"
+                )}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-6 h-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>Exercises</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  className={cn("w-4 h-4 transition-transform", isOpen ? "rotate-180" : "")}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              <AnimatePresence>
+                {isOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute top-full right-0 mt-2 w-56 bg-popover rounded-md shadow-lg border"
+                  >
+                    <div className="py-1">
+                      {exerciseItems.map((item) => (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setIsOpen(false)}
+                          className={cn(
+                            "block px-4 py-2 text-sm transition-colors",
+                            "hover:bg-accent hover:text-accent-foreground",
+                            location.pathname === item.path
+                              ? "bg-accent text-accent-foreground"
+                              : "text-foreground"
+                          )}
+                        >
+                          <span className="flex items-center space-x-2">
+                            {item.icon}
+                            <span>{item.name}</span>
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {navItems.map((item) => (
               <Link
                 key={item.path}
