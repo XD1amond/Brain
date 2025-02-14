@@ -237,7 +237,7 @@ const handleAnswer = (answer) => {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-8">
           <div className="space-y-6">
             <div className={questionAreaClasses}>
-              <HelpButton text="Rapid Reasoning Training:
+              <HelpButton text="Relational Reasoning Training:
 
 1. Read each premise (statement) carefully
 2. Evaluate if the conclusion logically follows from the premises

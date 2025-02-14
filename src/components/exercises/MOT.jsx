@@ -329,7 +329,7 @@ export default function MOT() {
           )}
           
           <div className="w-full h-[600px] relative">
-            <HelpButton text="Track Multiple Moving Objects in 3D Space:
+            <HelpButton text="3D Multiple Object Tracking:
 
 1. Memorize the highlighted red balls
 2. Keep track of their positions while they move
