@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { HelpButton } from '@/components/HelpButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { generateQuestion } from './generators';
@@ -236,6 +237,14 @@ const handleAnswer = (answer) => {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-8">
           <div className="space-y-6">
             <div className={questionAreaClasses}>
+              <HelpButton text="Rapid Reasoning Training:
+
+1. Read each premise (statement) carefully
+2. Evaluate if the conclusion logically follows from the premises
+3. Select 'True' if the conclusion is valid
+4. Select 'False' if the conclusion is not supported
+
+Work quickly but accurately - you have limited time for each question. Your score increases for correct answers and decreases for incorrect ones." />
               <div className="flex items-center gap-4 mb-6">
                 <button
                   onClick={togglePlay}

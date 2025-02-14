@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { HelpButton } from '@/components/HelpButton';
 import { Canvas } from '@react-three/fiber';
 import { PerspectiveCamera, Environment } from '@react-three/drei';
 import { Physics, useSphere } from '@react-three/cannon';
@@ -327,7 +328,15 @@ export default function MOT() {
             </div>
           )}
           
-          <div className="w-full h-[600px]">
+          <div className="w-full h-[600px] relative">
+            <HelpButton text="Track Multiple Moving Objects in 3D Space:
+
+1. Memorize the highlighted red balls
+2. Keep track of their positions while they move
+3. When they stop, click on the balls you were tracking
+4. Score points for correctly identifying the original balls
+
+The more accurately you identify the original balls, the higher your score!" />
             <Canvas>
               <Scene
                 balls={balls}

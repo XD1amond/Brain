@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { HelpButton } from '@/components/HelpButton';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text, Html } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -519,35 +520,48 @@ export default function NBack() {
         
         <div className="flex-1 bg-card rounded-xl overflow-hidden shadow-lg">
           <div className="flex flex-col gap-8">
-            {settings.is3D ? (
+            <div className="relative">
               <div className="w-full h-[500px]">
-                <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
-                  <ambientLight intensity={0.5} />
-                  <pointLight position={[10, 10, 10]} />
-                  <Grid3D
-                    position={current?.position}
-                    color={current?.color || '#ffffff'}
-                    isActive={true}
-                    number={current?.number}
-                    shape={current?.shape}
-                  />
-                  <OrbitControls
-                    enableZoom={false}
-                    autoRotate={settings.autoRotate}
-                    autoRotateSpeed={1}
-                  />
-                </Canvas>
+                <HelpButton text="N-Back Memory Training:
+
+Watch for patterns that match what appeared N positions back in the sequence. Press the corresponding key when you detect a match:
+
+• Position (A Key): Same location as N steps ago
+• Color (S Key): Same color as N steps ago
+• Audio (D Key): Same sound as N steps ago
+• Number (F Key): Same number as N steps ago
+• Shape (G Key): Same shape as N steps ago
+
+Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, press the matching key." />
+                {settings.is3D ? (
+                  <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
+                    <ambientLight intensity={0.5} />
+                    <pointLight position={[10, 10, 10]} />
+                    <Grid3D
+                      position={current?.position}
+                      color={current?.color || '#ffffff'}
+                      isActive={true}
+                      number={current?.number}
+                      shape={current?.shape}
+                    />
+                    <OrbitControls
+                      enableZoom={false}
+                      autoRotate={settings.autoRotate}
+                      autoRotateSpeed={1}
+                    />
+                  </Canvas>
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <Grid2D
+                      position={current?.position}
+                      color={current?.color || '#3498db'}
+                      number={current?.number}
+                      shape={current?.shape}
+                    />
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="h-[500px] flex items-center justify-center">
-                <Grid2D
-                  position={current?.position}
-                  color={current?.color || '#3498db'}
-                  number={current?.number}
-                  shape={current?.shape}
-                />
-              </div>
-            )}
+            </div>
 
             <div className="flex justify-center gap-4">
               {Object.entries(settings.stimuli).map(([type, enabled]) => enabled && (
