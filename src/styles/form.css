@@ -4,6 +4,10 @@
     @apply h-5 w-5 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-primary dark:text-primary focus:ring-primary/20 transition-all duration-200;
   }
 
+  .form-checkbox:checked:focus {
+    @apply bg-black;
+  }
+
   /* Custom radio styles */
   .form-radio {
     @apply h-5 w-5 border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-primary dark:text-primary focus:ring-primary/20 transition-all duration-200;
