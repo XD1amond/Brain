@@ -356,13 +356,6 @@ The more accurately you identify the original balls, the higher your score!" />
           
           {gameState === 'setup' && (
             <div className="space-y-6">
-              <div className="p-4 bg-primary/5 rounded-lg">
-                <h3 className="font-semibold mb-2">Exercise Settings</h3>
-                <p className="text-sm text-muted-foreground">
-                  Configure the difficulty level and parameters for your training session.
-                </p>
-              </div>
-
               <Settings settings={settings} onSettingsChange={setSettings} isPlaying={gameState !== 'setup'} />
 
               <button

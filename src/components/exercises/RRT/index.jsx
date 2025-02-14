@@ -237,7 +237,7 @@ const handleAnswer = (answer) => {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-8">
           <div className="space-y-6">
             <div className={questionAreaClasses}>
-              <HelpButton text="Relational Reasoning Training:
+              <HelpButton text="Reasonal Relational Training:
 
 1. Read each premise (statement) carefully
 2. Evaluate if the conclusion logically follows from the premises
@@ -430,6 +430,7 @@ Work quickly but accurately - you have limited time for each question. Your scor
           </div>
 
           <div className="space-y-6">
+            <h2 className="text-2xl font-bold mb-6">Reasonal Relational Training</h2>
             <div className="bg-card rounded-xl p-6 shadow-lg">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">Score</h2>
