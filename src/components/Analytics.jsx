@@ -375,6 +375,11 @@ function MOTContent({ selectedPeriod }) {
 
 function NBackContent({ selectedPeriod }) {
   const [gridType, setGridType] = useState('2d');
+  const [audioTypes, setAudioTypes] = useState({
+    tone: false,
+    letters: true,
+    numbers: false
+  });
   const [selectedStimuli, setSelectedStimuli] = useState({
     any: true,
     position: false,
@@ -442,38 +447,50 @@ function NBackContent({ selectedPeriod }) {
               <span>Any</span>
             </label>
             {['position', 'color', 'audio', 'shape', 'number'].map((type) => (
-              <label
-                key={type}
-                className={cn(
-                  "flex items-center space-x-3 p-3 rounded-lg transition-colors",
-                  selectedStimuli.any
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-muted/50 cursor-pointer"
+              <div key={type}>
+                <label
+                  className={cn(
+                    "flex items-center space-x-3 p-3 rounded-lg transition-colors",
+                    selectedStimuli.any
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-muted/50 cursor-pointer"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedStimuli[type] || false}
+                    onChange={() => handleStimuliChange(type)}
+                    className="form-checkbox"
+                    disabled={selectedStimuli.any}
+                  />
+                  <span className="capitalize">{type}</span>
+                </label>
+                {type === 'audio' && selectedStimuli.audio && !selectedStimuli.any && (
+                  <div className="ml-8 space-y-2">
+                    {['tone', 'letters', 'numbers'].map(audioType => (
+                      <label
+                        key={audioType}
+                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={audioTypes[audioType]}
+                          onChange={() => setAudioTypes(prev => ({
+                            ...prev,
+                            [audioType]: !prev[audioType]
+                          }))}
+                          className="form-checkbox"
+                        />
+                        <span className="capitalize">{audioType}</span>
+                      </label>
+                    ))}
+                  </div>
                 )}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedStimuli[type] || false}
-                  onChange={() => handleStimuliChange(type)}
-                  className="form-checkbox"
-                  disabled={selectedStimuli.any}
-                />
-                <span className="capitalize">{type}</span>
-              </label>
+              </div>
             ))}
           </div>
         </div>
       </div>
-      <LineGraph
-        title="N-Back Level"
-        color="yellow"
-        maxValue={5}
-        unit=""
-        selectedPeriod={selectedPeriod}
-        metric="nBackLevel"
-        exercise="nback"
-        selectedStimuli={selectedStimuli}
-      />
       <LineGraph
         title="Accuracy"
         color="green"
@@ -481,6 +498,16 @@ function NBackContent({ selectedPeriod }) {
         unit="%"
         selectedPeriod={selectedPeriod}
         metric="percentageCorrect"
+        exercise="nback"
+        selectedStimuli={selectedStimuli}
+      />
+      <LineGraph
+        title="N-Back Level"
+        color="yellow"
+        maxValue={5}
+        unit=""
+        selectedPeriod={selectedPeriod}
+        metric="nBackLevel"
         exercise="nback"
         selectedStimuli={selectedStimuli}
       />
