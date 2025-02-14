@@ -4,7 +4,7 @@ import { OrbitControls, Text, Html } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useAnalytics } from '@/hooks/useAnalytics';
+import { getTodayDate } from '@/lib/dateUtils';
 import { Settings } from './NBack/Settings';
 
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
@@ -215,7 +215,7 @@ function Grid2D({ position, color, number, shape }) {
 }
 
 export default function NBack() {
-  const { recordSession } = useAnalytics();
+  const [nbackAnalytics, setNbackAnalytics] = useLocalStorage('nback_analytics', []);
   const [settings, setSettings] = useLocalStorage('nback-settings', {
     is3D: false,
     nBack: 2,
@@ -591,15 +591,18 @@ export default function NBack() {
                 const totalAttempts = enabledScores.reduce((sum, [_, score]) => sum + score.total, 0);
                 const percentageCorrect = totalAttempts > 0 ? (totalCorrect / totalAttempts) * 100 : 0;
 
-                // Record analytics
-                recordSession({
+                // Record analytics to local storage
+                const session = {
                   exercise: 'nback',
+                  timestamp: Date.now(),
+                  date: getTodayDate(),
                   duration: Math.round((sequence.length * (settings.displayDuration + settings.delayDuration)) / 1000 / 60), // Convert to minutes
                   metrics: {
                     nBackLevel: settings.nBack,
                     percentageCorrect
                   }
-                });
+                };
+                setNbackAnalytics(prev => [...prev, session]);
 
                 // Reset game state
                 setSequence([]);

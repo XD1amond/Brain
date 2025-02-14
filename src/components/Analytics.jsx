@@ -1,12 +1,28 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useAnalytics } from '@/hooks/useAnalytics';
-import { getDateIntervals, formatDateLabel } from '@/lib/dateUtils';
-
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { getDateIntervals, formatDateLabel, getTodayDate } from '@/lib/dateUtils';
 function LineGraph({ title, color = "primary", maxValue = 100, unit = "", selectedPeriod = "week", metric, exercise }) {
+  // Load analytics from individual storages
+  const [rrtAnalytics] = useLocalStorage('rrt_analytics', []);
+  const [motAnalytics] = useLocalStorage('mot_analytics', []);
+  const [nbackAnalytics] = useLocalStorage('nback_analytics', []);
   const [hoveredPoint, setHoveredPoint] = useState(null);
-  const { analytics } = useAnalytics();
+
+  // Get analytics based on exercise type
+  const getAnalytics = () => {
+    switch (exercise) {
+      case 'rrt':
+        return rrtAnalytics;
+      case 'mot':
+        return motAnalytics;
+      case 'nback':
+        return nbackAnalytics;
+      default:
+        return [...rrtAnalytics, ...motAnalytics, ...nbackAnalytics];
+    }
+  };
 
   // Get real data points from analytics
   const dates = getDateIntervals(selectedPeriod);
@@ -18,11 +34,10 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
       nextDate.setDate(nextDate.getDate() + 1); // Add 1 day for other periods
     }
     
-    // Find sessions within this date's range and for the specified exercise if any
-    const sessions = analytics.sessions.filter(session =>
+    // Find sessions within this date's range
+    const sessions = getAnalytics().filter(session =>
       session.date >= date.getTime() &&
-      session.date < nextDate.getTime() &&
-      (!exercise || session.exercise === exercise)
+      session.date < nextDate.getTime()
     );
 
     // Calculate average value for the metric
@@ -341,32 +356,20 @@ function NBackContent({ selectedPeriod }) {
   );
 }
 
-function UFOVContent({ selectedPeriod }) {
+function UFOVContent() {
   return (
-    <div className="space-y-6">
-      <LineGraph
-        title="Visual Processing Speed"
-        color="orange"
-        maxValue={500}
-        unit="ms"
-        selectedPeriod={selectedPeriod}
-        metric="processingSpeed"
-      />
-      <LineGraph
-        title="Accuracy Over Time"
-        color="green"
-        maxValue={100}
-        unit="%"
-        selectedPeriod={selectedPeriod}
-        metric="percentageCorrect"
-      />
+    <div className="p-6 rounded-lg border bg-card text-card-foreground">
+      <h3 className="text-lg font-semibold mb-4">Coming Soon</h3>
+      <p className="text-muted-foreground">UFOV analytics are currently under development.</p>
     </div>
   );
 }
 
 function TimeGraph({ selectedPeriod }) {
   const [selectedExercise, setSelectedExercise] = useState('total');
-  const { analytics } = useAnalytics();
+  const [rrtAnalytics] = useLocalStorage('rrt_analytics', []);
+  const [motAnalytics] = useLocalStorage('mot_analytics', []);
+  const [nbackAnalytics] = useLocalStorage('nback_analytics', []);
   const exercises = [
     { id: 'total', name: 'Total' },
     { id: 'rrt', name: 'RRT' },
@@ -387,12 +390,22 @@ function TimeGraph({ selectedPeriod }) {
         nextDate.setDate(nextDate.getDate() + 1); // Add 1 day for other periods
       }
       
-      // Find sessions within this date's range and for the specified exercise
-      const sessions = analytics.sessions.filter(session =>
-        session.date >= date.getTime() &&
-        session.date < nextDate.getTime() &&
-        (!selectedExercise || selectedExercise === 'total' || session.exercise === selectedExercise)
-      );
+      // Get sessions based on selected exercise
+      let sessions = [];
+      if (selectedExercise === 'total') {
+        sessions = [...rrtAnalytics, ...motAnalytics, ...nbackAnalytics].filter(session =>
+          session.date >= date.getTime() &&
+          session.date < nextDate.getTime()
+        );
+      } else {
+        const analytics = selectedExercise === 'rrt' ? rrtAnalytics :
+                         selectedExercise === 'mot' ? motAnalytics :
+                         selectedExercise === 'nback' ? nbackAnalytics : [];
+        sessions = analytics.filter(session =>
+          session.date >= date.getTime() &&
+          session.date < nextDate.getTime()
+        );
+      }
 
       // Calculate total duration in minutes
       const duration = sessions.reduce((sum, session) => sum + (session.duration || 0), 0);
@@ -442,9 +455,15 @@ function TimeGraph({ selectedPeriod }) {
   );
 }
 
+const formatDuration = (minutes) => {
+  return `${Math.round(minutes)}m`;
+};
+
 function GeneralContent({ selectedPeriod }) {
-  const { getTrainingTime, getTimeBreakdown } = useAnalytics();
-  
+  const [rrtAnalytics] = useLocalStorage('rrt_analytics', []);
+  const [motAnalytics] = useLocalStorage('mot_analytics', []);
+  const [nbackAnalytics] = useLocalStorage('nback_analytics', []);
+
   // Get start and end dates based on selected period
   const now = new Date();
   const startDate = new Date(now);
@@ -468,8 +487,36 @@ function GeneralContent({ selectedPeriod }) {
       startDate.setFullYear(2000); // effectively all time
   }
 
-  const totalTime = getTrainingTime(null, startDate.getTime(), now.getTime());
-  const breakdown = getTimeBreakdown(startDate.getTime(), now.getTime());
+  // Calculate total time and breakdown from individual analytics
+  const getExerciseTime = (analytics) => {
+    return analytics
+      .filter(session => session.date >= startDate.getTime() && session.date <= now.getTime())
+      .reduce((total, session) => total + (session.duration || 0), 0);
+  };
+
+  const rrtTime = getExerciseTime(rrtAnalytics);
+  const motTime = getExerciseTime(motAnalytics);
+  const nbackTime = getExerciseTime(nbackAnalytics);
+  const totalMinutes = rrtTime + motTime + nbackTime;
+
+  const totalTime = formatDuration(totalMinutes);
+  const breakdown = [
+    {
+      name: 'RRT',
+      time: formatDuration(rrtTime),
+      percentage: totalMinutes > 0 ? Math.round((rrtTime / totalMinutes) * 100) : 0
+    },
+    {
+      name: '3D MOT',
+      time: formatDuration(motTime),
+      percentage: totalMinutes > 0 ? Math.round((motTime / totalMinutes) * 100) : 0
+    },
+    {
+      name: 'N-Back',
+      time: formatDuration(nbackTime),
+      percentage: totalMinutes > 0 ? Math.round((nbackTime / totalMinutes) * 100) : 0
+    }
+  ];
 
   return (
     <div className="space-y-8">

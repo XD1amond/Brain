@@ -1,3 +1,9 @@
+// Helper to get today's date at midnight for consistent date comparisons
+export const getTodayDate = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+};
+
 // Helper function to get date intervals based on time period
 export const getDateIntervals = (selectedPeriod) => {
   // Get the current date from the system

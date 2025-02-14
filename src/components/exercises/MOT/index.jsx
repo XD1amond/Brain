@@ -257,11 +257,40 @@ export default function MOT() {
     });
   };
 
+  const { recordSession } = useAnalytics();
+  const [startTime, setStartTime] = useState(null);
+
+  // Set start time when starting exercise
+  useEffect(() => {
+    if (gameState === 'ready') {
+      setStartTime(Date.now());
+    }
+  }, [gameState]);
+
   const checkResults = () => {
-    const correct = selectedIndices.filter(index => 
+    const correct = selectedIndices.filter(index =>
       targetIndices.includes(index)
     ).length;
     setScore(prev => prev + correct);
+    
+    // Record analytics
+    if (startTime) {
+      const sessionDuration = Math.round((Date.now() - startTime) / 1000 / 60); // Convert to minutes
+      const percentageCorrect = (correct / settings.numTargets) * 100;
+      
+      recordSession({
+        exercise: 'mot',
+        duration: sessionDuration,
+        metrics: {
+          totalBalls: settings.numBalls,
+          trackingBalls: settings.numTargets,
+          percentageCorrect
+        }
+      });
+      
+      setStartTime(null);
+    }
+    
     setGameState('results');
   };
 

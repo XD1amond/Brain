@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useAnalytics } from '@/hooks/useAnalytics';
+import { getTodayDate } from '@/lib/dateUtils';
 import { Room } from './MOT/Room';
 import { Settings } from './MOT/Settings';
 
@@ -169,8 +169,9 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selecte
   );
 }
 export default function MOT() {
-  const { recordSession } = useAnalytics();
+  const [motAnalytics, setMotAnalytics] = useLocalStorage('mot_analytics', []);
   const [startTime, setStartTime] = useState(null);
+
   const [settings, setSettings] = useLocalStorage('mot-settings', {
     numBalls: 8,
     numTargets: 3,
@@ -285,15 +286,18 @@ export default function MOT() {
     // Record analytics data only if we have a start time
     if (startTime) {
       const duration = Math.round((Date.now() - startTime) / 1000 / 60); // Convert to minutes
-      recordSession({
+      const session = {
         exercise: 'mot',
+        timestamp: Date.now(),
+        date: getTodayDate(),
         duration,
         metrics: {
           percentageCorrect: (correct / settings.numTargets) * 100,
           totalBalls: settings.numBalls,
           trackingBalls: settings.numTargets
         }
-      });
+      };
+      setMotAnalytics(prev => [...prev, session]);
     }
     setStartTime(null);
   };

@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { generateQuestion } from './generators';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useAnalytics } from '@/hooks/useAnalytics';
+import { getTodayDate } from '@/lib/dateUtils';
 import { Settings } from './Settings';
 
 export default function RRT() {
-  const { recordSession } = useAnalytics();
+  const [rrtAnalytics, setRrtAnalytics] = useLocalStorage('rrt_analytics', []);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -16,7 +16,7 @@ export default function RRT() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [startTime, setStartTime] = useState(null);
+  const [questionStartTime, setQuestionStartTime] = useState(null);
 
   const [settings, setSettings] = useLocalStorage('rrt-settings', {
     // General Settings
@@ -106,88 +106,89 @@ export default function RRT() {
       return prev;
     });
   }, [hasWordType, hasQuestionType]);
+const generateNewQuestion = useCallback(() => {
+  const question = generateQuestion(settings);
+  question.createdAt = Date.now();
+  setCurrentQuestion(question);
+  setCarouselIndex(0);
+  
+  const timerDuration = settings[`${question.type}Timer`] || settings.generalTimer || 30;
+  setTimeLeft(timerDuration);
+  setIsTimerRunning(true);
+  setIsTransitioning(false);
+  setQuestionStartTime(Date.now());
+}, [settings]);
 
-  const generateNewQuestion = useCallback(() => {
-    const question = generateQuestion(settings);
-    question.createdAt = Date.now();
-    setCurrentQuestion(question);
-    setCarouselIndex(0);
-    
-    const timerDuration = settings[`${question.type}Timer`] || settings.generalTimer || 30;
-    setTimeLeft(timerDuration);
-    setIsTimerRunning(true);
-    setIsTransitioning(false);
-  }, [settings]);
+// Generate initial question on mount
+useEffect(() => {
+  if (!currentQuestion && canStart) {
+    generateNewQuestion();
+  }
+}, [canStart, currentQuestion, generateNewQuestion]);
 
-  // Generate initial question on mount
-  useEffect(() => {
-    if (!currentQuestion && canStart) {
+// Question timer
+useEffect(() => {
+  if (!isPlaying || !isTimerRunning) return;
+  
+  const timer = setInterval(() => {
+    setTimeLeft(prev => {
+      if (prev <= 1) {
+        handleTimeout();
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+  
+  return () => clearInterval(timer);
+}, [isTimerRunning, isPlaying]);
+
+const togglePlay = () => {
+  if (isPlaying) {
+    setIsTimerRunning(false);
+    setIsPlaying(false);
+  } else {
+    if (!currentQuestion) {
       generateNewQuestion();
     }
-  }, [canStart, currentQuestion, generateNewQuestion]);
+    setIsTimerRunning(true);
+    setIsPlaying(true);
+  }
+};
 
-  useEffect(() => {
-    if (!isPlaying || !isTimerRunning) return;
-    
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          handleTimeout();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [isTimerRunning, isPlaying]);
-
-  const togglePlay = () => {
-    if (isPlaying) {
-      setIsTimerRunning(false);
-      
-      // Record analytics when stopping
-      if (startTime && history.length > 0) {
-        const sessionDuration = Math.round((Date.now() - startTime) / 1000 / 60); // Convert to minutes
-        const avgTimePerAnswer = history.reduce((acc, item) => acc + item.responseTime, 0) / history.length;
-        const correctAnswers = history.filter(item => item.isCorrect).length;
-        const percentageCorrect = (correctAnswers / history.length) * 100;
-
-        recordSession({
-          exercise: 'rrt',
-          duration: sessionDuration,
-          metrics: {
-            premisesCount: settings.globalPremises,
-            timePerAnswer: Math.round(avgTimePerAnswer / 1000), // Keep in seconds
-            percentageCorrect
-          }
-        });
-      }
-      setStartTime(null);
-    } else {
-      if (!currentQuestion) {
-        generateNewQuestion();
-      } else {
-        setIsTimerRunning(true);
-      }
-      setStartTime(Date.now());
+const recordQuestionAnalytics = (question, isCorrect, responseTime) => {
+  const duration = responseTime / 1000 / 60; // Convert ms to minutes
+  const session = {
+    exercise: 'rrt',
+    timestamp: Date.now(),
+    date: getTodayDate(),
+    duration,
+    metrics: {
+      premisesCount: settings.globalPremises,
+      timePerAnswer: Math.round(responseTime / 1000),
+      percentageCorrect: isCorrect ? 100 : 0
     }
-    setIsPlaying(!isPlaying);
   };
+  setRrtAnalytics(prev => [...prev, session]);
+};
 
-  const handleAnswer = (answer) => {
+const handleAnswer = (answer) => {
     if (isTransitioning) return;
     setIsTransitioning(true);
     setIsTimerRunning(false);
 
     const isCorrect = answer === currentQuestion.isValid;
+    const responseTime = Date.now() - questionStartTime;
     const answeredQuestion = {
       ...currentQuestion,
       userAnswer: answer,
       isCorrect,
       answeredAt: Date.now(),
-      responseTime: Date.now() - currentQuestion.createdAt
+      responseTime
     };
+    
+    // Record analytics for this question
+    recordQuestionAnalytics(answeredQuestion, isCorrect, responseTime);
     
     requestAnimationFrame(() => {
       setHistory(prev => [answeredQuestion, ...prev]);
@@ -201,13 +202,17 @@ export default function RRT() {
     setIsTransitioning(true);
     setIsTimerRunning(false);
 
+    const responseTime = (settings[`${currentQuestion.type}Timer`] || settings.generalTimer || 30) * 1000;
     const timedOutQuestion = {
       ...currentQuestion,
       userAnswer: 'timeout',
       isCorrect: false,
       answeredAt: Date.now(),
-      responseTime: (settings[`${currentQuestion.type}Timer`] || settings.generalTimer || 30) * 1000
+      responseTime
     };
+    
+    // Record analytics for timed out question
+    recordQuestionAnalytics(timedOutQuestion, false, responseTime);
     
     requestAnimationFrame(() => {
       setHistory(prev => [timedOutQuestion, ...prev]);
