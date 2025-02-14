@@ -285,7 +285,7 @@ export default function MOT() {
 
     // Record analytics data only if we have a start time
     if (startTime) {
-      const duration = Math.round((Date.now() - startTime) / 1000 / 60); // Convert to minutes
+      const duration = (Date.now() - startTime) / 1000 / 60; // Convert ms to minutes
       const session = {
         exercise: 'mot',
         timestamp: Date.now(),

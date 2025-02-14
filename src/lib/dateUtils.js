@@ -12,13 +12,15 @@ export const getDateIntervals = (selectedPeriod) => {
 
   switch (selectedPeriod) {
     case 'today':
-      // For today, show hourly intervals from midnight to current hour
-      const currentHour = now.getHours();
-      return Array.from({ length: currentHour + 1 }, (_, i) => {
+      // For today, show 24 hours with 4-hour interval labels
+      const dates = Array.from({ length: 24 }, (_, i) => {
         const date = new Date(startOfDay);
         date.setHours(i);
+        // Add a property to indicate if this should show a label
+        date.showLabel = i % 4 === 0;
         return date;
       });
+      return dates;
     case 'week':
       return Array.from({ length: 7 }, (_, i) => {
         const date = new Date(startOfDay);

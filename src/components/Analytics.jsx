@@ -3,22 +3,37 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { getDateIntervals, formatDateLabel, getTodayDate } from '@/lib/dateUtils';
-function LineGraph({ title, color = "primary", maxValue = 100, unit = "", selectedPeriod = "week", metric, exercise }) {
+function LineGraph({ title, color = "primary", maxValue = 100, unit = "", selectedPeriod = "week", metric, exercise, selectedStimuli }) {
   // Load analytics from individual storages
   const [rrtAnalytics] = useLocalStorage('rrt_analytics', []);
   const [motAnalytics] = useLocalStorage('mot_analytics', []);
   const [nbackAnalytics] = useLocalStorage('nback_analytics', []);
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
-  // Get analytics based on exercise type
+  // Get analytics based on exercise type and filters
   const getAnalytics = () => {
+    if (!exercise) return [];
+    
     switch (exercise) {
       case 'rrt':
         return rrtAnalytics;
       case 'mot':
         return motAnalytics;
       case 'nback':
-        return nbackAnalytics;
+        if (!selectedStimuli) return nbackAnalytics;
+        
+        // Get selected stimuli types
+        const selectedTypes = Object.entries(selectedStimuli)
+          .filter(([key, value]) => key !== 'any' && value)
+          .map(([key]) => key);
+
+        return nbackAnalytics.filter(session => {
+          // If "Any" is selected or no specific stimuli are selected, include all sessions
+          if (selectedStimuli.any || selectedTypes.length === 0) return true;
+
+          // Check if session has activeStimuli and if it has any of the selected stimuli types
+          return session.metrics.activeStimuli?.some(type => selectedTypes.includes(type)) ?? false;
+        });
       default:
         return [...rrtAnalytics, ...motAnalytics, ...nbackAnalytics];
     }
@@ -29,7 +44,7 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
   const dataPoints = dates.map(date => {
     const nextDate = new Date(date);
     if (selectedPeriod === 'today') {
-      nextDate.setHours(date.getHours() + 4); // Add 4 hours for today's intervals
+      nextDate.setHours(date.getHours() + 4); // Next 4-hour interval
     } else {
       nextDate.setDate(nextDate.getDate() + 1); // Add 1 day for other periods
     }
@@ -40,16 +55,34 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
       session.date < nextDate.getTime()
     );
 
-    // Calculate average value for the metric
+    // Calculate value based on metric type
     let value = 0;
     if (sessions.length > 0) {
-      value = sessions.reduce((sum, session) => sum + session.metrics[metric], 0) / sessions.length;
+      if (metric === 'duration') {
+        // Sum up total duration for the period
+        value = sessions.reduce((sum, session) => sum + (session.duration || 0), 0);
+      } else if (metric === 'premisesCount' || metric === 'nBackLevel') {
+        // Use median for premises and nback level
+        const values = sessions.map(session => session.metrics[metric]).sort((a, b) => a - b);
+        const mid = Math.floor(values.length / 2);
+        value = values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+      } else if (metric === 'percentageCorrect') {
+        // Calculate average percentage correct
+        value = sessions.reduce((sum, session) => sum + session.metrics[metric], 0) / sessions.length;
+      } else if (metric === 'timePerAnswer') {
+        // Calculate average time per answer
+        value = sessions.reduce((sum, session) => sum + session.metrics[metric], 0) / sessions.length;
+      } else if (metric === 'totalBalls' || metric === 'trackingBalls') {
+        // Use the last value for balls metrics
+        value = sessions[sessions.length - 1]?.metrics[metric] || 0;
+      }
     }
 
     return {
       x: date.getTime(),
       y: Math.round(value),
-      date
+      date,
+      hasSessions: sessions.length > 0
     };
   });
 
@@ -72,22 +105,27 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
   const graphWidth = width - padding * 2;
   const graphHeight = height - padding * 2;
 
-  // Create path from data points with dynamic scaling
-  const points = dataPoints.map((point, i) => {
-    const x = padding + (i * graphWidth) / Math.max(dataPoints.length - 1, 1);
-    const y = isNaN(point.y) ? padding + graphHeight : // Default to bottom of graph if NaN
-      padding + graphHeight - (Math.max(0, Math.min(1, (point.y - displayMin) / displayRange)) * graphHeight);
-    return { x, y: isNaN(y) ? padding + graphHeight : y }; // Extra safety check
+  // Filter out points with no value and create coordinates
+  const validDataPoints = dataPoints.filter(point => point.hasSessions);
+  const points = validDataPoints.map((point, i) => {
+    const x = padding + (i * graphWidth) / Math.max(validDataPoints.length - 1, 1);
+    const y = padding + graphHeight - (Math.max(0, Math.min(1, (point.y - displayMin) / displayRange)) * graphHeight);
+    return { x, y, data: point };
   });
 
-  // Filter out points with NaN values and create path
-  const validPoints = points.filter(p => !isNaN(p.y));
-  const pathD = validPoints.length > 0 ?
-    `M${validPoints.map(p => `${p.x},${p.y}`).join(' L')}` : '';
+  // Create path from valid points
+  const pathD = points.length > 0 ?
+    `M${points.map(p => `${p.x},${p.y}`).join(' L')}` : '';
 
   // Format date for display
   const formatDate = (date) => {
     if (hoveredPoint !== null) {
+      if (selectedPeriod === 'today') {
+        return date.toLocaleTimeString(undefined, {
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+      }
       return date.toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',
@@ -132,17 +170,32 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
             })}
 
             {/* X-axis labels */}
-            {dataPoints.map((point, i) => (
-              <text
-                key={i}
-                x={padding + (i * graphWidth) / (dataPoints.length - 1)}
-                y={height - padding + 16}
-                textAnchor="middle"
-                className="text-xs fill-muted-foreground"
-              >
-                {formatDateLabel(point.date, selectedPeriod)}
-              </text>
-            ))}
+            {dataPoints.map((point, i) =>
+              // Only show label if showLabel is true or if it's not today view
+              selectedPeriod === 'today' ? (
+                point.date.showLabel && (
+                  <text
+                    key={i}
+                    x={padding + (i * graphWidth) / (dataPoints.length - 1)}
+                    y={height - padding + 16}
+                    textAnchor="middle"
+                    className="text-xs fill-muted-foreground"
+                  >
+                    {formatDateLabel(point.date, selectedPeriod)}
+                  </text>
+                )
+              ) : (
+                <text
+                  key={i}
+                  x={padding + (i * graphWidth) / (dataPoints.length - 1)}
+                  y={height - padding + 16}
+                  textAnchor="middle"
+                  className="text-xs fill-muted-foreground"
+                >
+                  {formatDateLabel(point.date, selectedPeriod)}
+                </text>
+              )
+            )}
 
             {/* Line */}
             <path
@@ -150,17 +203,44 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
               fill="none"
               stroke={`hsl(var(--${color}))`}
               strokeWidth="2"
-              className="opacity-75"
+              className="opacity-90 dark:stroke-foreground"
             />
 
             {/* Area under the line */}
-            <path
-              d={pathD ? `${pathD} L${width - padding},${height - padding} L${padding},${height - padding} Z` : ''}
-              fill={`hsl(var(--${color}))`}
-              className="opacity-10"
+            {points.length > 1 && (
+              <path
+                d={`${pathD} L${points[points.length - 1].x},${height - padding} L${points[0].x},${height - padding} Z`}
+                fill={`hsl(var(--${color}))`}
+                className="opacity-20 dark:opacity-30 dark:fill-foreground"
+              />
+            )}
+
+            {/* Hover area for entire graph */}
+            <rect
+              x={padding}
+              y={padding}
+              width={graphWidth}
+              height={graphHeight}
+              fill="transparent"
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const relativeX = (x - padding) / graphWidth;
+                if (points.length > 0) {
+                  const index = Math.min(
+                    Math.floor(relativeX * points.length),
+                    points.length - 1
+                  );
+                  if (index >= 0) {
+                    setHoveredPoint(index);
+                  }
+                }
+              }}
+              onMouseLeave={() => setHoveredPoint(null)}
+              className="cursor-crosshair"
             />
 
-            {/* Data points and hover targets */}
+            {/* Data points */}
             {points.map((point, i) => (
               <g key={i}>
                 <circle
@@ -168,16 +248,7 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
                   cy={point.y}
                   r="4"
                   fill={`hsl(var(--${color}))`}
-                  className="opacity-75"
-                />
-                <circle
-                  cx={point.x}
-                  cy={point.y}
-                  r="12"
-                  fill="transparent"
-                  onMouseEnter={() => setHoveredPoint(i)}
-                  onMouseLeave={() => setHoveredPoint(null)}
-                  className="cursor-pointer"
+                  className="opacity-90 stroke-2 stroke-background dark:stroke-card dark:fill-foreground"
                 />
                 {hoveredPoint === i && (
                   <g>
@@ -196,7 +267,7 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
                       textAnchor="middle"
                       className="text-xs fill-popover-foreground font-medium"
                     >
-                      {dataPoints[i].y}{unit}
+                      {point.data.y}{unit}
                     </text>
                     <text
                       x={point.x}
@@ -204,7 +275,7 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
                       textAnchor="middle"
                       className="text-[10px] fill-muted-foreground"
                     >
-                      {formatDate(dataPoints[i].date)}
+                      {formatDate(point.data.date)}
                     </text>
                   </g>
                 )}
@@ -238,12 +309,22 @@ function RRTContent({ selectedPeriod }) {
   return (
     <div className="space-y-6">
       <LineGraph
-        title="Premises Over Time"
+        title="Accuracy"
+        color="green"
+        maxValue={100}
+        unit="%"
+        selectedPeriod={selectedPeriod}
+        metric="percentageCorrect"
+        exercise="rrt"
+      />
+      <LineGraph
+        title="Premises"
         color="primary"
         maxValue={10}
         unit=""
         selectedPeriod={selectedPeriod}
         metric="premisesCount"
+        exercise="rrt"
       />
       <LineGraph
         title="Average Time per Answer"
@@ -252,14 +333,7 @@ function RRTContent({ selectedPeriod }) {
         unit="s"
         selectedPeriod={selectedPeriod}
         metric="timePerAnswer"
-      />
-      <LineGraph
-        title="Average Percentage Correct"
-        color="green"
-        maxValue={100}
-        unit="%"
-        selectedPeriod={selectedPeriod}
-        metric="percentageCorrect"
+        exercise="rrt"
       />
     </div>
   );
@@ -269,88 +343,146 @@ function MOTContent({ selectedPeriod }) {
   return (
     <div className="space-y-6">
       <LineGraph
-        title="Average Percentage Correct"
+        title="Accuracy"
         color="green"
         maxValue={100}
         unit="%"
         selectedPeriod={selectedPeriod}
         metric="percentageCorrect"
+        exercise="mot"
       />
       <LineGraph
-        title="Average Total Balls"
+        title="Total Balls"
         color="blue"
         maxValue={20}
         unit=""
         selectedPeriod={selectedPeriod}
         metric="totalBalls"
+        exercise="mot"
       />
       <LineGraph
-        title="Average Tracking Balls"
+        title="Tracking Balls"
         color="purple"
         maxValue={10}
         unit=""
         selectedPeriod={selectedPeriod}
         metric="trackingBalls"
+        exercise="mot"
       />
     </div>
   );
 }
 
 function NBackContent({ selectedPeriod }) {
-  const [gridType, setGridType] = useState('3d');
-  const [stimuliCount, setStimuliCount] = useState(1);
+  const [gridType, setGridType] = useState('2d');
+  const [selectedStimuli, setSelectedStimuli] = useState({
+    any: true,
+    position: false,
+    color: false,
+    audio: false,
+    shape: false,
+    number: false
+  });
+
+  const handleStimuliChange = (key) => {
+    if (key === 'any') {
+      setSelectedStimuli(prev => prev.any ? {
+        any: false,
+        position: false,
+        color: false,
+        audio: false,
+        shape: false,
+        number: false
+      } : { any: true });
+    } else {
+      setSelectedStimuli(prev => ({
+        ...prev,
+        any: false,
+        [key]: !prev[key]
+      }));
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-4 p-4 rounded-lg bg-accent/10">
-        <div className="inline-flex p-1 bg-background rounded-md shadow-sm">
-          <button
-            onClick={() => setGridType('3d')}
-            className={cn(
-              "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-              gridType === '3d' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-            )}
-          >
-            3D Grid
-          </button>
-          <button
-            onClick={() => setGridType('2d')}
-            className={cn(
-              "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-              gridType === '2d' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-            )}
-          >
-            2D Grid
-          </button>
+      <div className="flex flex-col gap-4 p-4 rounded-lg bg-accent/10">
+        <div className="flex flex-wrap gap-4">
+          <div className="inline-flex p-1 bg-background rounded-md shadow-sm">
+            <button
+              onClick={() => setGridType('3d')}
+              className={cn(
+                "px-4 py-2 text-sm font-medium rounded-md transition-colors",
+                gridType === '3d' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              )}
+            >
+              3D Grid
+            </button>
+            <button
+              onClick={() => setGridType('2d')}
+              className={cn(
+                "px-4 py-2 text-sm font-medium rounded-md transition-colors",
+                gridType === '2d' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              )}
+            >
+              2D Grid
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium">Stimuli:</span>
-          <select
-            value={stimuliCount}
-            onChange={(e) => setStimuliCount(Number(e.target.value))}
-            className="bg-background border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-          >
-            {[1, 2, 3, 4, 5].map(num => (
-              <option key={num} value={num}>{num}</option>
+
+        <div className="space-y-2">
+          <div className="text-sm font-medium">Stimuli:</div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={selectedStimuli.any}
+                onChange={() => handleStimuliChange('any')}
+                className="form-checkbox"
+              />
+              <span>Any</span>
+            </label>
+            {['position', 'color', 'audio', 'shape', 'number'].map((type) => (
+              <label
+                key={type}
+                className={cn(
+                  "flex items-center space-x-3 p-3 rounded-lg transition-colors",
+                  selectedStimuli.any
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-muted/50 cursor-pointer"
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedStimuli[type] || false}
+                  onChange={() => handleStimuliChange(type)}
+                  className="form-checkbox"
+                  disabled={selectedStimuli.any}
+                />
+                <span className="capitalize">{type}</span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
       </div>
       <LineGraph
-        title="N-Back Level Progress"
+        title="N-Back Level"
         color="yellow"
         maxValue={5}
         unit=""
         selectedPeriod={selectedPeriod}
         metric="nBackLevel"
+        exercise="nback"
+        selectedStimuli={selectedStimuli}
       />
       <LineGraph
-        title="Percentage Correct Over Time"
+        title="Accuracy"
         color="green"
         maxValue={100}
         unit="%"
         selectedPeriod={selectedPeriod}
         metric="percentageCorrect"
+        exercise="nback"
+        selectedStimuli={selectedStimuli}
       />
     </div>
   );
@@ -391,21 +523,16 @@ function TimeGraph({ selectedPeriod }) {
       }
       
       // Get sessions based on selected exercise
-      let sessions = [];
-      if (selectedExercise === 'total') {
-        sessions = [...rrtAnalytics, ...motAnalytics, ...nbackAnalytics].filter(session =>
-          session.date >= date.getTime() &&
-          session.date < nextDate.getTime()
-        );
-      } else {
-        const analytics = selectedExercise === 'rrt' ? rrtAnalytics :
-                         selectedExercise === 'mot' ? motAnalytics :
-                         selectedExercise === 'nback' ? nbackAnalytics : [];
-        sessions = analytics.filter(session =>
-          session.date >= date.getTime() &&
-          session.date < nextDate.getTime()
-        );
-      }
+      const sessions = (selectedExercise === 'total'
+        ? [...rrtAnalytics, ...motAnalytics, ...nbackAnalytics]
+        : selectedExercise === 'rrt' ? rrtAnalytics
+        : selectedExercise === 'mot' ? motAnalytics
+        : selectedExercise === 'nback' ? nbackAnalytics
+        : []
+      ).filter(session =>
+        session.date >= date.getTime() &&
+        session.date < nextDate.getTime()
+      );
 
       // Calculate total duration in minutes
       const duration = sessions.reduce((sum, session) => sum + (session.duration || 0), 0);
@@ -421,7 +548,7 @@ function TimeGraph({ selectedPeriod }) {
   return (
     <div className="p-6 rounded-lg border bg-card text-card-foreground">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold">Training Time per Day</h3>
+        <h3 className="text-lg font-semibold">Training Time</h3>
         <div className="flex gap-2">
           {exercises.map(exercise => (
             <button
@@ -449,7 +576,7 @@ function TimeGraph({ selectedPeriod }) {
         unit="min"
         selectedPeriod={selectedPeriod}
         metric="duration"
-        exercise={selectedExercise === 'total' ? null : selectedExercise}
+        exercise={selectedExercise}
       />
     </div>
   );
@@ -551,27 +678,29 @@ function GeneralContent({ selectedPeriod }) {
 }
 
 function TabContent({ tab }) {
-  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [selectedPeriod, setSelectedPeriod] = useState('today');
 
   return (
     <div className="mt-8 space-y-8">
-      {/* Time Period Selector */}
-      <div className="inline-flex p-1 bg-accent/20 rounded-lg">
-        {timePeriods.map((period) => (
-          <button
-            key={period.id}
-            onClick={() => setSelectedPeriod(period.id)}
-            className={cn(
-              "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-              selectedPeriod === period.id
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-            )}
-          >
-            {period.name}
-          </button>
-        ))}
-      </div>
+      {/* Time Period Selector - Hide for UFOV */}
+      {tab !== 'ufov' && (
+        <div className="inline-flex p-1 bg-accent/20 rounded-lg">
+          {timePeriods.map((period) => (
+            <button
+              key={period.id}
+              onClick={() => setSelectedPeriod(period.id)}
+              className={cn(
+                "px-4 py-2 text-sm font-medium rounded-md transition-colors",
+                selectedPeriod === period.id
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              )}
+            >
+              {period.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Tab-specific content */}
       {tab === 'general' && <GeneralContent selectedPeriod={selectedPeriod} />}

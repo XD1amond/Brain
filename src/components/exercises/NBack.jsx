@@ -262,6 +262,7 @@ export default function NBack() {
   });
 
   const [isPlaying, setIsPlaying] = useState(false);
+  const [startTime, setStartTime] = useState(null);
   const audioContext = useRef(null);
 
   const generateStimulus = useCallback(() => {
@@ -591,15 +592,29 @@ export default function NBack() {
                 const totalAttempts = enabledScores.reduce((sum, [_, score]) => sum + score.total, 0);
                 const percentageCorrect = totalAttempts > 0 ? (totalCorrect / totalAttempts) * 100 : 0;
 
+                // Get active stimuli types
+                const activeStimuli = Object.entries(settings.stimuli)
+                  .filter(([_, enabled]) => enabled)
+                  .map(([type]) => type);
+
+                // Get active audio types
+                const activeAudioTypes = Object.entries(settings.audioTypes)
+                  .filter(([_, enabled]) => enabled)
+                  .map(([type]) => type);
+
                 // Record analytics to local storage
                 const session = {
                   exercise: 'nback',
                   timestamp: Date.now(),
                   date: getTodayDate(),
-                  duration: Math.round((sequence.length * (settings.displayDuration + settings.delayDuration)) / 1000 / 60), // Convert to minutes
+                  duration: (Date.now() - startTime) / 1000 / 60, // Convert ms to minutes
                   metrics: {
                     nBackLevel: settings.nBack,
-                    percentageCorrect
+                    percentageCorrect,
+                    activeStimuli,
+                    stimuliCount: activeStimuli.length,
+                    audioTypes: activeAudioTypes,
+                    audioTypesCount: activeAudioTypes.length
                   }
                 };
                 setNbackAnalytics(prev => [...prev, session]);
@@ -607,8 +622,10 @@ export default function NBack() {
                 // Reset game state
                 setSequence([]);
                 setCurrent(null);
+                setStartTime(null);
               } else {
                 setIsPlaying(true);
+                setStartTime(Date.now());
               }
             }}
             className={cn(
