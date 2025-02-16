@@ -382,7 +382,12 @@ Work quickly but accurately - you have limited time for each question. Your scor
                                 key={value}
                                 disabled={isTransitioning || !isPlaying}
                                 onClick={() => handleAnswer(value === 'true')}
-                                className={`py-3 bg-${buttonColors[value]} hover:bg-${buttonColors[value]}/90 text-${buttonColors[value]}-foreground rounded-lg font-medium transition-colors disabled:opacity-50`}
+                                className={cn(
+                                  "py-3 rounded-lg font-medium transition-colors disabled:opacity-50",
+                                  buttonColors[value] === 'success'
+                                    ? "bg-success hover:bg-success/90 text-success-foreground"
+                                    : "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                                )}
                               >
                                 {value === 'true' ? 'True' : 'False'}
                               </button>
@@ -426,7 +431,12 @@ Work quickly but accurately - you have limited time for each question. Your scor
                               key={value}
                               disabled={isTransitioning || !isPlaying}
                               onClick={() => handleAnswer(value === 'true')}
-                              className={`py-3 bg-${buttonColors[value]} hover:bg-${buttonColors[value]}/90 text-${buttonColors[value]}-foreground rounded-lg font-medium transition-colors disabled:opacity-50`}
+                              className={cn(
+                                "py-3 rounded-lg font-medium transition-colors disabled:opacity-50",
+                                buttonColors[value] === 'success'
+                                  ? "bg-success hover:bg-success/90 text-success-foreground"
+                                  : "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                              )}
                             >
                               {value === 'true' ? 'True' : 'False'}
                             </button>
