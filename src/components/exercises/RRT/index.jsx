@@ -380,7 +380,7 @@ Work quickly but accurately - you have limited time for each question. Your scor
                             {buttonOrder.map(value => (
                               <button
                                 key={value}
-                                disabled={isTransitioning}
+                                disabled={isTransitioning || !isPlaying}
                                 onClick={() => handleAnswer(value === 'true')}
                                 className={`py-3 bg-${buttonColors[value]} hover:bg-${buttonColors[value]}/90 text-${buttonColors[value]}-foreground rounded-lg font-medium transition-colors disabled:opacity-50`}
                               >
@@ -424,7 +424,7 @@ Work quickly but accurately - you have limited time for each question. Your scor
                           {buttonOrder.map(value => (
                             <button
                               key={value}
-                              disabled={isTransitioning}
+                              disabled={isTransitioning || !isPlaying}
                               onClick={() => handleAnswer(value === 'true')}
                               className={`py-3 bg-${buttonColors[value]} hover:bg-${buttonColors[value]}/90 text-${buttonColors[value]}-foreground rounded-lg font-medium transition-colors disabled:opacity-50`}
                             >
