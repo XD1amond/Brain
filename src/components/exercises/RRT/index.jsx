@@ -439,7 +439,7 @@ Work quickly but accurately - you have limited time for each question. Your scor
               </div>
             </div>
 
-            {isPlaying && (
+            {history.length > 0 && (
               <div className="bg-card rounded-xl p-6 shadow-lg">
                 <h3 className="text-lg font-medium mb-4">History</h3>
                 <div className="space-y-4">
