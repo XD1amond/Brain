@@ -102,190 +102,6 @@ export function Settings({ settings, onSettingsChange }) {
           </div>
         </SettingsGroup>
 
-        <SettingsGroup title="Timings" defaultExpanded={false}>
-          <div className="grid gap-4">
-            <div className="form-group">
-              <label className="form-label">General Timer (sec)</label>
-              <input
-                type="number"
-                min="5"
-                max="60"
-                value={settings.generalTimer}
-                onChange={e => handleChange('generalTimer', parseInt(e.target.value))}
-                className="form-input w-20"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Used when individual timers are set to 0
-              </p>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Distinction Timer (sec)</label>
-              <input
-                type="number"
-                min="0"
-                max="60"
-                value={settings.distinctionTimer}
-                onChange={e => handleChange('distinctionTimer', parseInt(e.target.value))}
-                className="form-input w-20"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Set to 0 to use general timer
-              </p>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Comparison Timer (sec)</label>
-              <input
-                type="number"
-                min="0"
-                max="60"
-                value={settings.comparisonTimer}
-                onChange={e => handleChange('comparisonTimer', parseInt(e.target.value))}
-                className="form-input w-20"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Set to 0 to use general timer
-              </p>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Temporal Timer (sec)</label>
-              <input
-                type="number"
-                min="0"
-                max="60"
-                value={settings.temporalTimer}
-                onChange={e => handleChange('temporalTimer', parseInt(e.target.value))}
-                className="form-input w-20"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Set to 0 to use general timer
-              </p>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Space 2D Timer (sec)</label>
-              <input
-                type="number"
-                min="0"
-                max="60"
-                value={settings.directionTimer}
-                onChange={e => handleChange('directionTimer', parseInt(e.target.value))}
-                className="form-input w-20"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Set to 0 to use general timer
-              </p>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Space 3D Timer (sec)</label>
-              <input
-                type="number"
-                min="0"
-                max="60"
-                value={settings.direction3DTimer}
-                onChange={e => handleChange('direction3DTimer', parseInt(e.target.value))}
-                className="form-input w-20"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Set to 0 to use general timer
-              </p>
-            </div>
-          </div>
-        </SettingsGroup>
-
-        <SettingsGroup title="Word Types" defaultExpanded={false}>
-          {!hasWordType && (
-            <div className="text-sm text-destructive mb-2">
-              At least one word type must be enabled
-            </div>
-          )}
-          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-            <input
-              type="checkbox"
-              checked={settings.useNonsenseWords}
-              onChange={e => handleChange('useNonsenseWords', e.target.checked)}
-              className="form-checkbox"
-            />
-            <span className="font-medium">Use Nonsense Words</span>
-          </label>
-          {settings.useNonsenseWords && (
-            <div className="form-group ml-8">
-              <label className="form-label">Word Length</label>
-              <input
-                type="number"
-                min="2"
-                max="15"
-                value={settings.nonsenseWordLength}
-                onChange={e => handleChange('nonsenseWordLength', parseInt(e.target.value))}
-                className="form-input w-20"
-              />
-            </div>
-          )}
-
-          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-            <input
-              type="checkbox"
-              checked={settings.useGarbageWords}
-              onChange={e => handleChange('useGarbageWords', e.target.checked)}
-              className="form-checkbox"
-            />
-            <span className="font-medium">Use Garbage Words</span>
-          </label>
-          {settings.useGarbageWords && (
-            <div className="form-group ml-8">
-              <label className="form-label">Word Length</label>
-              <input
-                type="number"
-                min="2"
-                max="10"
-                value={settings.garbageWordLength}
-                onChange={e => handleChange('garbageWordLength', parseInt(e.target.value))}
-                className="form-input w-20"
-              />
-            </div>
-          )}
-
-          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-            <input
-              type="checkbox"
-              checked={settings.useMeaningfulWords}
-              onChange={e => handleChange('useMeaningfulWords', e.target.checked)}
-              className="form-checkbox"
-            />
-            <span className="font-medium">Use Meaningful Words</span>
-          </label>
-          {settings.useMeaningfulWords && (
-            <div className="space-y-2 ml-8">
-              <label className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={settings.useNouns}
-                  onChange={e => handleChange('useNouns', e.target.checked)}
-                  className="form-checkbox"
-                />
-                <span className="font-medium">Nouns</span>
-              </label>
-              <label className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={settings.useAdjectives}
-                  onChange={e => handleChange('useAdjectives', e.target.checked)}
-                  className="form-checkbox"
-                />
-                <span className="font-medium">Adjectives</span>
-              </label>
-            </div>
-          )}
-
-          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-            <input
-              type="checkbox"
-              checked={settings.useEmoji}
-              onChange={e => handleChange('useEmoji', e.target.checked)}
-              className="form-checkbox"
-            />
-            <span className="font-medium">Use Emoji 🎨</span>
-          </label>
-        </SettingsGroup>
-
         <SettingsGroup title="Question Types" defaultExpanded={false}>
           {!hasQuestionType && (
             <div className="text-sm text-destructive mb-2">
@@ -424,6 +240,190 @@ export function Settings({ settings, onSettingsChange }) {
                 />
               </div>
             )}
+          </div>
+        </SettingsGroup>
+
+        <SettingsGroup title="Word Types" defaultExpanded={false}>
+          {!hasWordType && (
+            <div className="text-sm text-destructive mb-2">
+              At least one word type must be enabled
+            </div>
+          )}
+          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+            <input
+              type="checkbox"
+              checked={settings.useNonsenseWords}
+              onChange={e => handleChange('useNonsenseWords', e.target.checked)}
+              className="form-checkbox"
+            />
+            <span className="font-medium">Use Nonsense Words</span>
+          </label>
+          {settings.useNonsenseWords && (
+            <div className="form-group ml-8">
+              <label className="form-label">Word Length</label>
+              <input
+                type="number"
+                min="2"
+                max="15"
+                value={settings.nonsenseWordLength}
+                onChange={e => handleChange('nonsenseWordLength', parseInt(e.target.value))}
+                className="form-input w-20"
+              />
+            </div>
+          )}
+
+          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+            <input
+              type="checkbox"
+              checked={settings.useGarbageWords}
+              onChange={e => handleChange('useGarbageWords', e.target.checked)}
+              className="form-checkbox"
+            />
+            <span className="font-medium">Use Garbage Words</span>
+          </label>
+          {settings.useGarbageWords && (
+            <div className="form-group ml-8">
+              <label className="form-label">Word Length</label>
+              <input
+                type="number"
+                min="2"
+                max="10"
+                value={settings.garbageWordLength}
+                onChange={e => handleChange('garbageWordLength', parseInt(e.target.value))}
+                className="form-input w-20"
+              />
+            </div>
+          )}
+
+          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+            <input
+              type="checkbox"
+              checked={settings.useMeaningfulWords}
+              onChange={e => handleChange('useMeaningfulWords', e.target.checked)}
+              className="form-checkbox"
+            />
+            <span className="font-medium">Use Meaningful Words</span>
+          </label>
+          {settings.useMeaningfulWords && (
+            <div className="space-y-2 ml-8">
+              <label className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={settings.useNouns}
+                  onChange={e => handleChange('useNouns', e.target.checked)}
+                  className="form-checkbox"
+                />
+                <span className="font-medium">Nouns</span>
+              </label>
+              <label className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={settings.useAdjectives}
+                  onChange={e => handleChange('useAdjectives', e.target.checked)}
+                  className="form-checkbox"
+                />
+                <span className="font-medium">Adjectives</span>
+              </label>
+            </div>
+          )}
+
+          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+            <input
+              type="checkbox"
+              checked={settings.useEmoji}
+              onChange={e => handleChange('useEmoji', e.target.checked)}
+              className="form-checkbox"
+            />
+            <span className="font-medium">Use Emoji 🎨</span>
+          </label>
+        </SettingsGroup>
+
+        <SettingsGroup title="Timings" defaultExpanded={false}>
+          <div className="grid gap-4">
+            <div className="form-group">
+              <label className="form-label">General Timer (sec)</label>
+              <input
+                type="number"
+                min="5"
+                max="60"
+                value={settings.generalTimer}
+                onChange={e => handleChange('generalTimer', parseInt(e.target.value))}
+                className="form-input w-20"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Used when individual timers are set to 0
+              </p>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Distinction Timer (sec)</label>
+              <input
+                type="number"
+                min="0"
+                max="60"
+                value={settings.distinctionTimer}
+                onChange={e => handleChange('distinctionTimer', parseInt(e.target.value))}
+                className="form-input w-20"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Set to 0 to use general timer
+              </p>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Comparison Timer (sec)</label>
+              <input
+                type="number"
+                min="0"
+                max="60"
+                value={settings.comparisonTimer}
+                onChange={e => handleChange('comparisonTimer', parseInt(e.target.value))}
+                className="form-input w-20"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Set to 0 to use general timer
+              </p>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Temporal Timer (sec)</label>
+              <input
+                type="number"
+                min="0"
+                max="60"
+                value={settings.temporalTimer}
+                onChange={e => handleChange('temporalTimer', parseInt(e.target.value))}
+                className="form-input w-20"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Set to 0 to use general timer
+              </p>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Space 2D Timer (sec)</label>
+              <input
+                type="number"
+                min="0"
+                max="60"
+                value={settings.directionTimer}
+                onChange={e => handleChange('directionTimer', parseInt(e.target.value))}
+                className="form-input w-20"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Set to 0 to use general timer
+              </p>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Space 3D Timer (sec)</label>
+              <input
+                type="number"
+                min="0"
+                max="60"
+                value={settings.direction3DTimer}
+                onChange={e => handleChange('direction3DTimer', parseInt(e.target.value))}
+                className="form-input w-20"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Set to 0 to use general timer
+              </p>
+            </div>
           </div>
         </SettingsGroup>
 
