@@ -4,7 +4,7 @@ A comprehensive cognitive enhancement platform featuring scientifically-designed
 
 ## Exercises
 
-### RRT (Reasonal Relational Training)
+### RRT (Relational Reasoning Training)
 Enhances logical reasoning and cognitive flexibility through premise-based exercises.
 
 **Cognitive Benefits:**
@@ -85,8 +85,8 @@ Will enhance visual processing speed and peripheral awareness.
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/brain-training.git
-cd brain-training
+git clone https://github.com/XD1amond/Brain.git
+cd Brain
 ```
 
 2. Install dependencies:
@@ -115,14 +115,9 @@ Each exercise in this platform is based on established cognitive training resear
 
 ## Contributing
 
-Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+Pull requests and feedback welcome!
 
 ## Acknowledgments
 
-- Research papers and studies that informed the exercise designs
-- Open-source libraries and tools that made this project possible
+- [Soamsy](https://github.com/soamsy) for his work on [Syllogimous](https://github.com/soamsy/Syllogimous-v3)
 - Contributors and testers who helped improve the platform
