@@ -12,7 +12,7 @@ export default function RRT() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useLocalStorage('rrt_history', []);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
