@@ -1,91 +1,127 @@
 import { generateWords, getPremises } from './utils';
 
+// Helper for consistent premise formatting
+const createDistinctionPremise = (a, b, comparison) => {
+    return `<span class="subject">${a}</span> is ${comparison} <span class="subject">${b}</span>`;
+};
+
+const createSamePremise = (a, b) => {
+    return createDistinctionPremise(a, b, 'same as');
+};
+
+const createOppositePremise = (a, b) => {
+    return createDistinctionPremise(a, b, 'opposite of');
+};
+
+class DistinctionQuestion {
+    constructor() {
+        this.buckets = [[], []];
+        this.bucketMap = new Map();
+        this.neighbors = new Map();
+    }
+
+    generate(settings) {
+        const premises = getPremises(settings, 'distinction');
+        const items = generateWords(premises + 1, settings);
+        const questionPremises = [];
+
+        // Initialize first item in bucket 0
+        const first = items[0];
+        this.bucketMap.set(first, 0);
+        this.buckets[0].push(first);
+        this.neighbors.set(first, new Set());
+
+        // Generate premises and build relationships
+        for (let i = 1; i < items.length; i++) {
+            const source = this.pickSourceWord(items[i-1]);
+            const target = items[i];
+            // Initialize target's neighbors set
+            this.neighbors.set(target, new Set());
+
+            // Add bidirectional neighbor relationship
+            this.neighbors.get(source).add(target);
+            this.neighbors.get(target).add(source);
+
+            if (Math.random() > 0.5) {
+                // Same relationship
+                questionPremises.push(createSamePremise(source, target));
+                const sourceBucket = this.bucketMap.get(source);
+                this.bucketMap.set(target, sourceBucket);
+                this.buckets[sourceBucket].push(target);
+            } else {
+                // Opposite relationship
+                questionPremises.push(createOppositePremise(source, target));
+                const sourceBucket = this.bucketMap.get(source);
+                const targetBucket = (sourceBucket + 1) % 2;
+                this.bucketMap.set(target, targetBucket);
+                this.buckets[targetBucket].push(target);
+            }
+        }
+
+        // Find two distant items for conclusion
+        const [startWord, endWord] = this.findDistantPair(items);
+        
+        // Randomly decide if conclusion should state actual relationship
+        const stateActualRelationship = Math.random() > 0.5;
+        
+        // Generate conclusion
+        const startBucket = this.bucketMap.get(startWord);
+        const endBucket = this.bucketMap.get(endWord);
+        const areSame = startBucket === endBucket;
+
+        let conclusion;
+        if (stateActualRelationship) {
+            conclusion = areSame
+                ? createSamePremise(startWord, endWord)
+                : createOppositePremise(startWord, endWord);
+        } else {
+            conclusion = areSame
+                ? createOppositePremise(startWord, endWord)
+                : createSamePremise(startWord, endWord);
+        }
+
+        return {
+            type: 'distinction',
+            category: 'Distinction',
+            premises: questionPremises,
+            conclusion,
+            isValid: stateActualRelationship,
+            buckets: this.buckets.map(bucket => Array.from(bucket)),
+            relationships: Object.fromEntries(
+                Array.from(this.bucketMap).map(([k, v]) => [k, v])
+            )
+        };
+    }
+
+    pickSourceWord(defaultWord) {
+        // Prefer words with fewer connections
+        const candidates = Array.from(this.neighbors.entries())
+            .filter(([_, neighbors]) => neighbors.size < 2)
+            .map(([word]) => word);
+
+        if (candidates.length === 0) {
+            return defaultWord;
+        }
+
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    findDistantPair(items) {
+        // Try to find items in different buckets
+        for (let attempts = 0; attempts < 10; attempts++) {
+            const a = items[Math.floor(Math.random() * items.length)];
+            const b = items[Math.floor(Math.random() * items.length)];
+            
+            if (a !== b && this.bucketMap.get(a) !== this.bucketMap.get(b)) {
+                return [a, b];
+            }
+        }
+
+        // Fallback to first and last items
+        return [items[0], items[items.length - 1]];
+    }
+}
+
 export const generateDistinctionQuestion = (settings) => {
-  const premises = getPremises(settings, 'distinction');
-  const items = generateWords(premises + 1, settings);
-  const relationships = new Map();
-  const questionPremises = [];
-
-  // Initialize relationships for all items
-  items.forEach(item => {
-    relationships.set(item, new Map());
-  });
-
-  // Helper to update relationships transitively
-  const updateRelationships = (item1, item2, isSame) => {
-    const processedPairs = new Set();
-
-    const propagateRelation = (from, to, relation) => {
-      const key = `${from}-${to}`;
-      if (processedPairs.has(key)) return;
-      processedPairs.add(key);
-      processedPairs.add(`${to}-${from}`);
-
-      // Set the relationship both ways
-      relationships.get(from).set(to, relation);
-      relationships.get(to).set(from, relation);
-
-      // Propagate to all items related to 'to'
-      relationships.get(to).forEach((existingRelation, relatedItem) => {
-        if (relatedItem !== from) {
-          const newRelation = existingRelation === relation;
-          propagateRelation(from, relatedItem, newRelation);
-        }
-      });
-
-      // Propagate to all items related to 'from'
-      relationships.get(from).forEach((existingRelation, relatedItem) => {
-        if (relatedItem !== to) {
-          const newRelation = existingRelation === relation;
-          propagateRelation(to, relatedItem, newRelation);
-        }
-      });
-    };
-
-    propagateRelation(item1, item2, isSame);
-  };
-
-  // Set each item as same as itself
-  items.forEach(item => {
-    relationships.get(item).set(item, true);
-  });
-
-  for (let i = 1; i < items.length; i++) {
-    const isSameRelation = Math.random() > 0.5;
-    const useNegation = settings.enableNegation && Math.random() > 0.5;
-    const effectiveRelation = useNegation ? !isSameRelation : isSameRelation;
-
-    // Create the premise statement
-    const statement = useNegation
-      ? `<span class="subject">${items[i-1]}</span> is <span class="is-negated">${isSameRelation ? 'opposite of' : 'same as'}</span> <span class="subject">${items[i]}</span>`
-      : `<span class="subject">${items[i-1]}</span> is ${isSameRelation ? 'same as' : 'opposite of'} <span class="subject">${items[i]}</span>`;
-    questionPremises.push(statement);
-
-    // Update relationships
-    updateRelationships(items[i-1], items[i], effectiveRelation);
-  }
-
-  // Get the actual relationship between first and last items
-  const actualRelation = relationships.get(items[0]).get(items[items.length - 1]) || false;
-  
-  // Randomly decide what the conclusion will state
-  const statesSameAs = Math.random() > 0.5;
-  const useNegation = settings.enableNegation && Math.random() > 0.5;
-  
-  // If the conclusion states "same as" (or negated "opposite of"),
-  // then it's valid when that matches the actual relation
-  const isValid = useNegation ? (statesSameAs !== actualRelation) : (statesSameAs === actualRelation);
-  
-  const conclusion = useNegation
-    ? `<span class="subject">${items[0]}</span> is <span class="is-negated">${statesSameAs ? 'opposite of' : 'same as'}</span> <span class="subject">${items[items.length - 1]}</span>`
-    : `<span class="subject">${items[0]}</span> is ${statesSameAs ? 'same as' : 'opposite of'} <span class="subject">${items[items.length - 1]}</span>`;
-
-  return {
-    type: 'distinction',
-    category: 'Distinction',
-    premises: questionPremises,
-    conclusion,
-    isValid,
-    relationships: Object.fromEntries([...relationships].map(([k, v]) => [k, Object.fromEntries(v)]))
-  };
+    return new DistinctionQuestion().generate(settings);
 };

@@ -223,36 +223,8 @@
   @apply p-6 bg-primary/5 rounded-lg border border-primary/10 mt-6;
 }
 
-.negation-explainer {
-  @apply text-sm text-muted-foreground italic;
-}
-
-.is-negated {
-  @apply line-through text-destructive;
-}
-
-.is-meta {
-  @apply text-primary italic;
-}
-
 .subject {
   @apply font-semibold;
-}
-
-.stroop-effect .subject {
-  @apply transition-colors duration-300;
-}
-
-.stroop-effect .subject:nth-of-type(3n) {
-  @apply text-red-500;
-}
-
-.stroop-effect .subject:nth-of-type(3n+1) {
-  @apply text-blue-500;
-}
-
-.stroop-effect .subject:nth-of-type(3n+2) {
-  @apply text-green-500;
 }
 
 /* Timer Styles */

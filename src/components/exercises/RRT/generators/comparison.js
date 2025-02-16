@@ -1,22 +1,52 @@
 import { generateWords, getPremises } from './utils';
 
+// Helper to create a comparison premise statement
+const createPremise = (a, b, comparison) => {
+  return `<span class="subject">${a}</span> is ${comparison} than <span class="subject">${b}</span>`;
+};
+
+// Helper to find two items with sufficient distance between them
+const findTwoDistantItems = (items, positions, minDistance = 2) => {
+  const maxAttempts = 10;
+  let attempts = 0;
+  let start, end;
+
+  do {
+    start = Math.floor(Math.random() * items.length);
+    end = Math.floor(Math.random() * items.length);
+    attempts++;
+  } while (
+    (Math.abs(positions.get(items[end]) - positions.get(items[start])) < minDistance) &&
+    attempts < maxAttempts
+  );
+
+  if (attempts === maxAttempts) {
+    // Find the two items with maximum distance between them
+    let maxDist = -1;
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        const dist = Math.abs(positions.get(items[j]) - positions.get(items[i]));
+        if (dist > maxDist) {
+          maxDist = dist;
+          start = i;
+          end = j;
+        }
+      }
+    }
+  }
+
+  return [items[start], items[end]];
+};
+
 export const generateComparisonQuestion = (settings) => {
   const premises = getPremises(settings, 'comparison');
   const items = generateWords(premises + 1, settings);
   const questionPremises = [];
   const order = [...items];
+  
+  // Track relationships between items (greater than relationships)
   const relationships = new Map();
-
-  // Initialize relationships map
-  items.forEach(item => {
-    relationships.set(item, new Set());
-  });
-
-  // Helper to check if establishing this relationship would create a contradiction
-  const wouldCreateContradiction = (greater, lesser) => {
-    // If lesser > greater already exists (directly or transitively), this would be a contradiction
-    return isGreaterThan(lesser, greater, new Set());
-  };
+  items.forEach(item => relationships.set(item, new Set()));
 
   // Helper to check if a is greater than b through any chain
   const isGreaterThan = (a, b, visited = new Set()) => {
@@ -30,140 +60,55 @@ export const generateComparisonQuestion = (settings) => {
     return false;
   };
 
-  // Helper to update relationships
-  const updateRelationships = (greater, lesser, force = false) => {
-    // If force is true, add the relationship regardless of contradictions
-    if (force) {
-      relationships.get(greater).add(lesser);
-      return true;
-    }
-
-    // Check for contradictions before adding
-    if (wouldCreateContradiction(greater, lesser)) {
-      // If this would create a contradiction, try reversing the relationship
-      if (!wouldCreateContradiction(lesser, greater)) {
-        relationships.get(lesser).add(greater);
-        return true;
-      }
-      // If both directions would create contradictions, skip this relationship
-      return false;
-    }
-    // Only store direct relationships
-    relationships.get(greater).add(lesser);
-    return true;
-  };
-
-  // Helper to find two items with an established relationship path
-  const findConnectedPair = () => {
-    for (let i = 0; i < items.length; i++) {
-      for (let j = i + 1; j < items.length; j++) {
-        const a = items[i];
-        const b = items[j];
-        if (isGreaterThan(a, b) || isGreaterThan(b, a)) {
-          return [a, b];
-        }
-      }
-    }
-    return [items[0], items[1]]; // Fallback to first two items if no path found
-  };
-
   // Generate premises and build relationships
   for (let i = 0; i < items.length - 1; i++) {
-    let statement;
-    let relationshipEstablished = false;
-    let attempts = 0;
-    const maxAttempts = 4;
-
-    while (!relationshipEstablished && attempts < maxAttempts) {
-      const useNegation = settings.enableNegation && Math.random() > 0.5;
-      const reverseOrder = Math.random() > 0.5;
-
-      const a = items[i];
-      const b = items[i+1];
-      let greater, lesser;
-
-      if (useNegation) {
-        if (reverseOrder) {
-          // "B is NOT less than A" means B > A
-          greater = b;
-          lesser = a;
-          if (updateRelationships(greater, lesser)) {
-            statement = `<span class="subject">${b}</span> is <span class="is-negated">less</span> than <span class="subject">${a}</span>`;
-            relationshipEstablished = true;
-          }
-        } else {
-          // "A is NOT more than B" means B > A
-          greater = b;
-          lesser = a;
-          if (updateRelationships(greater, lesser)) {
-            statement = `<span class="subject">${a}</span> is <span class="is-negated">more</span> than <span class="subject">${b}</span>`;
-            relationshipEstablished = true;
-          }
-        }
-      } else {
-        if (reverseOrder) {
-          // "B is more than A" means B > A
-          greater = b;
-          lesser = a;
-          if (updateRelationships(greater, lesser)) {
-            statement = `<span class="subject">${b}</span> is more than <span class="subject">${a}</span>`;
-            relationshipEstablished = true;
-          }
-        } else {
-          // "A is less than B" means B > A
-          greater = b;
-          lesser = a;
-          if (updateRelationships(greater, lesser)) {
-            statement = `<span class="subject">${a}</span> is less than <span class="subject">${b}</span>`;
-            relationshipEstablished = true;
-          }
-        }
-      }
-      attempts++;
+    const currentItem = items[i];
+    const nextItem = items[i + 1];
+    if (Math.random() > 0.5) {
+      // Express relationship as "more than" (nextItem > currentItem)
+      relationships.get(nextItem).add(currentItem);
+      const statement = createPremise(
+        nextItem,
+        currentItem,
+        'more'
+      );
+      questionPremises.push(statement);
+    } else {
+      // Express relationship as "less than" (currentItem < nextItem)
+      relationships.get(nextItem).add(currentItem);
+      const statement = createPremise(
+        currentItem,
+        nextItem,
+        'less'
+      );
+      questionPremises.push(statement);
     }
-
-    // If we couldn't establish a valid relationship after max attempts,
-    // just pick one direction and force it
-    if (!relationshipEstablished) {
-      updateRelationships(items[i+1], items[i], true);
-      statement = `<span class="subject">${items[i]}</span> is less than <span class="subject">${items[i+1]}</span>`;
-    }
-    questionPremises.push(statement);
   }
 
-  // Select two items that have an established relationship path
-  const [a, b] = findConnectedPair();
-
-  // Determine if b is greater than a through any chain of relationships
-  const bGreaterThanA = isGreaterThan(b, a);
-  const aGreaterThanB = isGreaterThan(a, b);
+  // Find two items for the conclusion
+  const [startItem, endItem] = [items[0], items[items.length - 1]];
   
-  // If neither has a relationship to the other, force one
-  if (!bGreaterThanA && !aGreaterThanB) {
-    updateRelationships(b, a, true);
-  }
+  // Determine the actual relationship
+  const endGreaterThanStart = isGreaterThan(endItem, startItem);
+  
+  // Randomly decide if we want to state the actual relationship or its opposite
+  const stateActualRelationship = Math.random() > 0.5;
+  
+  const conclusion = createPremise(
+    startItem,
+    endItem,
+    stateActualRelationship === endGreaterThanStart ? 'less' : 'more'
+  );
 
-  const useNegation = settings.enableNegation && Math.random() > 0.5;
-  const reverseConclusion = Math.random() > 0.5;
-
-  let conclusion;
-  if (reverseConclusion) {
-    conclusion = useNegation
-      ? `<span class="subject">${a}</span> is <span class="is-negated">${bGreaterThanA ? 'more' : 'less'}</span> than <span class="subject">${b}</span>`
-      : `<span class="subject">${a}</span> is ${bGreaterThanA ? 'less' : 'more'} than <span class="subject">${b}</span>`;
-  } else {
-    conclusion = useNegation
-      ? `<span class="subject">${b}</span> is <span class="is-negated">${bGreaterThanA ? 'less' : 'more'}</span> than <span class="subject">${a}</span>`
-      : `<span class="subject">${b}</span> is ${bGreaterThanA ? 'more' : 'less'} than <span class="subject">${a}</span>`;
-  }
+  const isValid = stateActualRelationship;
 
   return {
     type: 'comparison',
     category: 'Comparison',
     premises: questionPremises,
     conclusion,
-    isValid: reverseConclusion ? !bGreaterThanA : bGreaterThanA,
-    order,
+    isValid,
+    order: items,
     relationships: Object.fromEntries([...relationships].map(([k, v]) => [k, Array.from(v)]))
   };
 };

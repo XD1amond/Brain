@@ -18,6 +18,11 @@ export default function RRT() {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState(null);
+  const [buttonOrder, setButtonOrder] = useState(['true', 'false']);
+  const [buttonColors, setButtonColors] = useState({
+    true: 'success',
+    false: 'destructive'
+  });
 
   const [settings, setSettings] = useLocalStorage('rrt-settings', {
     // General Settings
@@ -65,10 +70,8 @@ export default function RRT() {
 
     // Misc Settings
     enableCarouselMode: false,
-    enableNegation: false,
-    removeNegationExplainer: true,
-    enableMeta: false,
-    enableStroopEffect: false
+    randomizeButtons: false,
+    buttonNegation: false
   });
 
   // Validate settings
@@ -110,14 +113,47 @@ export default function RRT() {
 const generateNewQuestion = useCallback(() => {
   const question = generateQuestion(settings);
   question.createdAt = Date.now();
-  setCurrentQuestion(question);
-  setCarouselIndex(0);
-  
-  const timerDuration = settings[`${question.type}Timer`] || settings.generalTimer || 30;
-  setTimeLeft(timerDuration);
-  setIsTimerRunning(true);
-  setIsTransitioning(false);
-  setQuestionStartTime(Date.now());
+
+  // Randomize button order and colors if enabled
+  if (settings.randomizeButtons) {
+    const newOrder = Math.random() > 0.5 ? ['true', 'false'] : ['false', 'true'];
+    setButtonOrder(newOrder);
+
+    if (settings.buttonNegation) {
+      const colors = ['success', 'destructive'];
+      const randomColors = Math.random() > 0.5 ? colors : [...colors].reverse();
+      setButtonColors({
+        true: randomColors[0],
+        false: randomColors[1]
+      });
+    } else {
+      setButtonColors({
+        true: 'success',
+        false: 'destructive'
+      });
+    }
+  } else {
+    setButtonOrder(['true', 'false']);
+    setButtonColors({
+      true: 'success',
+      false: 'destructive'
+    });
+  }
+
+  // Batch state updates to prevent race conditions
+  const updateStates = () => {
+    setCurrentQuestion(question);
+    setCarouselIndex(0);
+    setQuestionStartTime(Date.now());
+    setIsTransitioning(false);
+    
+    const timerDuration = settings[`${question.type}Timer`] || settings.generalTimer || 30;
+    setTimeLeft(timerDuration);
+    setIsTimerRunning(true);
+  };
+
+  // Ensure state updates happen in a single frame
+  requestAnimationFrame(updateStates);
 }, [settings]);
 
 // Generate initial question on mount
@@ -129,11 +165,13 @@ useEffect(() => {
 
 // Question timer
 useEffect(() => {
-  if (!isPlaying || !isTimerRunning) return;
+  if (!isPlaying || !isTimerRunning || !currentQuestion) return;
   
+  let timeoutTriggered = false;
   const timer = setInterval(() => {
     setTimeLeft(prev => {
-      if (prev <= 1) {
+      if (prev <= 1 && !timeoutTriggered) {
+        timeoutTriggered = true;
         handleTimeout();
         return 0;
       }
@@ -141,8 +179,11 @@ useEffect(() => {
     });
   }, 1000);
   
-  return () => clearInterval(timer);
-}, [isTimerRunning, isPlaying]);
+  return () => {
+    clearInterval(timer);
+    timeoutTriggered = false;
+  };
+}, [isTimerRunning, isPlaying, currentQuestion]);
 
 const togglePlay = () => {
   if (isPlaying) {
@@ -174,7 +215,7 @@ const recordQuestionAnalytics = (question, isCorrect, responseTime) => {
 };
 
 const handleAnswer = (answer) => {
-    if (isTransitioning) return;
+    if (isTransitioning || !currentQuestion) return;
     setIsTransitioning(true);
     setIsTimerRunning(false);
 
@@ -188,20 +229,38 @@ const handleAnswer = (answer) => {
       responseTime
     };
     
-    // Record analytics for this question
-    recordQuestionAnalytics(answeredQuestion, isCorrect, responseTime);
-    
-    requestAnimationFrame(() => {
+    // Batch state updates to prevent race conditions
+    const updateStates = () => {
       setHistory(prev => [answeredQuestion, ...prev]);
       setScore(prev => prev + (isCorrect ? 1 : -1));
-      setTimeout(generateNewQuestion, 750);
-    });
+      recordQuestionAnalytics(answeredQuestion, isCorrect, responseTime);
+      
+      // Generate new question after a delay
+      setTimeout(() => {
+        setIsTransitioning(false);
+        generateNewQuestion();
+      }, 750);
+    };
+
+    // Ensure state updates happen in a single frame
+    requestAnimationFrame(updateStates);
   };
 
   const handleTimeout = () => {
-    if (isTransitioning) return;
+    if (isTransitioning || !currentQuestion) return;
+    
+    // Prevent double-handling of timeouts
+    const lastQuestion = history[0];
+    if (lastQuestion &&
+        lastQuestion.createdAt === currentQuestion.createdAt &&
+        lastQuestion.userAnswer === 'timeout') {
+      return;
+    }
+
+    // Set transitioning state immediately to prevent multiple calls
     setIsTransitioning(true);
     setIsTimerRunning(false);
+    setTimeLeft(0);
 
     const responseTime = (settings[`${currentQuestion.type}Timer`] || settings.generalTimer || 30) * 1000;
     const timedOutQuestion = {
@@ -212,19 +271,25 @@ const handleAnswer = (answer) => {
       responseTime
     };
     
-    // Record analytics for timed out question
-    recordQuestionAnalytics(timedOutQuestion, false, responseTime);
-    
-    requestAnimationFrame(() => {
+    // Use a single state update batch to prevent race conditions
+    const updateStates = () => {
       setHistory(prev => [timedOutQuestion, ...prev]);
       setScore(prev => prev - 1);
-      setTimeout(generateNewQuestion, 750);
-    });
+      recordQuestionAnalytics(timedOutQuestion, false, responseTime);
+      
+      // Generate new question after a delay
+      setTimeout(() => {
+        setIsTransitioning(false);
+        generateNewQuestion();
+      }, 750);
+    };
+
+    // Ensure state updates happen in a single frame
+    requestAnimationFrame(updateStates);
   };
 
   const questionClasses = cn(
-    "min-h-screen bg-background",
-    settings.enableStroopEffect && "stroop-effect"
+    "min-h-screen bg-background"
   );
 
   const questionAreaClasses = cn(
@@ -312,20 +377,16 @@ Work quickly but accurately - you have limited time for each question. Your scor
                             }} />
                           </div>
                           <div className="grid grid-cols-2 gap-4">
-                            <button
-                              disabled={isTransitioning}
-                              onClick={() => handleAnswer(true)}
-                              className="py-3 bg-success hover:bg-success/90 text-success-foreground rounded-lg font-medium transition-colors disabled:opacity-50"
-                            >
-                              True
-                            </button>
-                            <button
-                              disabled={isTransitioning}
-                              onClick={() => handleAnswer(false)}
-                              className="py-3 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg font-medium transition-colors disabled:opacity-50"
-                            >
-                              False
-                            </button>
+                            {buttonOrder.map(value => (
+                              <button
+                                key={value}
+                                disabled={isTransitioning}
+                                onClick={() => handleAnswer(value === 'true')}
+                                className={`py-3 bg-${buttonColors[value]} hover:bg-${buttonColors[value]}/90 text-${buttonColors[value]}-foreground rounded-lg font-medium transition-colors disabled:opacity-50`}
+                              >
+                                {value === 'true' ? 'True' : 'False'}
+                              </button>
+                            ))}
                           </div>
                         </>
                       )}
@@ -340,13 +401,6 @@ Work quickly but accurately - you have limited time for each question. Your scor
                         transition={{ duration: 0.2 }}
                         className="space-y-6"
                       >
-                        {!settings.removeNegationExplainer && settings.enableNegation && (
-                          <div className="p-4 bg-muted rounded-lg mb-4">
-                            <p className="text-sm text-muted-foreground">
-                              Invert the <span className="text-primary">highlighted</span> text
-                            </p>
-                          </div>
-                        )}
                         {currentQuestion.premises.map((premise, index) => (
                           <div
                             key={index}
@@ -356,25 +410,27 @@ Work quickly but accurately - you have limited time for each question. Your scor
                         ))}
                         <div className="p-6 bg-primary/5 rounded-lg border border-primary/10">
                           <h3 className="text-lg font-medium text-primary mb-4">Conclusion</h3>
-                          <p className="text-xl" dangerouslySetInnerHTML={{ 
-                            __html: currentQuestion.conclusion 
-                          }} />
+                          {currentQuestion.conclusions ? (
+                            <div className="space-y-4">
+                              {currentQuestion.conclusions.map((conclusion, index) => (
+                                <p key={index} className="text-xl" dangerouslySetInnerHTML={{ __html: conclusion }} />
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xl" dangerouslySetInnerHTML={{ __html: currentQuestion.conclusion }} />
+                          )}
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                          <button
-                            disabled={isTransitioning}
-                            onClick={() => handleAnswer(true)}
-                            className="py-3 bg-success hover:bg-success/90 text-success-foreground rounded-lg font-medium transition-colors disabled:opacity-50"
-                          >
-                            True
-                          </button>
-                          <button
-                            disabled={isTransitioning}
-                            onClick={() => handleAnswer(false)}
-                            className="py-3 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg font-medium transition-colors disabled:opacity-50"
-                          >
-                            False
-                          </button>
+                          {buttonOrder.map(value => (
+                            <button
+                              key={value}
+                              disabled={isTransitioning}
+                              onClick={() => handleAnswer(value === 'true')}
+                              className={`py-3 bg-${buttonColors[value]} hover:bg-${buttonColors[value]}/90 text-${buttonColors[value]}-foreground rounded-lg font-medium transition-colors disabled:opacity-50`}
+                            >
+                              {value === 'true' ? 'True' : 'False'}
+                            </button>
+                          ))}
                         </div>
                       </motion.div>
                     )
@@ -404,8 +460,16 @@ Work quickly but accurately - you have limited time for each question. Your scor
                           <p key={i} dangerouslySetInnerHTML={{ __html: premise }} />
                         ))}
                         <div className="pt-2 border-t border-border mt-2">
-                          <p><strong>Conclusion:</strong></p>
-                          <p dangerouslySetInnerHTML={{ __html: item.conclusion }} />
+                          <p><strong>Conclusion{item.conclusions?.length > 1 ? 's' : ''}:</strong></p>
+                          {item.conclusions ? (
+                            <div className="space-y-2">
+                              {item.conclusions.map((conclusion, i) => (
+                                <p key={i} dangerouslySetInnerHTML={{ __html: conclusion }} />
+                              ))}
+                            </div>
+                          ) : (
+                            <p dangerouslySetInnerHTML={{ __html: item.conclusion }} />
+                          )}
                         </div>
                         <div className="flex justify-between items-center text-sm text-muted-foreground">
                           <span>

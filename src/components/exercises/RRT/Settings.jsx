@@ -441,44 +441,24 @@ export function Settings({ settings, onSettingsChange }) {
           <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
             <input
               type="checkbox"
-              checked={settings.enableNegation}
-              onChange={e => handleChange('enableNegation', e.target.checked)}
+              checked={settings.randomizeButtons}
+              onChange={e => handleChange('randomizeButtons', e.target.checked)}
               className="form-checkbox"
             />
-            <span className="font-medium">Enable Negation</span>
+            <span className="font-medium">Randomize Buttons</span>
           </label>
 
-          {settings.enableNegation && (
+          {settings.randomizeButtons && (
             <label className="flex items-center space-x-3 p-3 ml-8 rounded-lg hover:bg-muted/50 transition-colors">
               <input
                 type="checkbox"
-                checked={settings.removeNegationExplainer}
-                onChange={e => handleChange('removeNegationExplainer', e.target.checked)}
+                checked={settings.buttonNegation}
+                onChange={e => handleChange('buttonNegation', e.target.checked)}
                 className="form-checkbox"
               />
-              <span className="font-medium">Remove Negation Explainer</span>
+              <span className="font-medium">Button Negation</span>
             </label>
           )}
-
-          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-            <input
-              type="checkbox"
-              checked={settings.enableMeta}
-              onChange={e => handleChange('enableMeta', e.target.checked)}
-              className="form-checkbox"
-            />
-            <span className="font-medium">Enable Meta Relations</span>
-          </label>
-
-          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-            <input
-              type="checkbox"
-              checked={settings.enableStroopEffect}
-              onChange={e => handleChange('enableStroopEffect', e.target.checked)}
-              className="form-checkbox"
-            />
-            <span className="font-medium">Enable Stroop Effect</span>
-          </label>
         </SettingsGroup>
 
       </div>
