@@ -290,7 +290,7 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
 
 const tabs = [
   { id: 'general', name: 'General', description: 'Overall training progress and statistics' },
-  { id: 'rrt', name: 'RRT', description: 'Reasonal Relational Training metrics' },
+  { id: 'rrt', name: 'RRT', description: 'Relational Reasoning Training metrics' },
   { id: 'mot', name: '3D MOT', description: 'Multiple Object Tracking performance' },
   { id: 'nback', name: 'N-Back', description: 'Working Memory Training statistics' },
   { id: 'ufov', name: 'UFOV', description: 'Visual Processing Speed metrics' }

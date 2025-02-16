@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 const exercises = [
   {
     title: 'RRT',
-    description: 'Reasonal Relational Training',
+    description: 'Relational Reasoning Training',
     details: 'Enhance logical reasoning through temporal, spatial, and abstract relationships.',
     path: '/rrt',
     color: 'from-blue-500 to-indigo-500',
