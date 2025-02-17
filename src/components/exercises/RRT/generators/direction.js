@@ -11,12 +11,19 @@ const inverse = (a) => a.map(c => -c);
 // Helper to find direction between two points
 const findDirection = (a, b) => normalize(diffCoords(a, b));
 
-// Helper to get conclusion coordinates
-const getConclusionCoords = (wordCoordMap, startWord, endWord) => {
-    const [start, end] = [wordCoordMap[startWord], wordCoordMap[endWord]];
-    const diffCoord = diffCoords(start, end);
-    const conclusionCoord = normalize(diffCoord);
-    return [diffCoord, conclusionCoord];
+// Helper to create a direction statement with proper grammar
+const createDirectionStatement = (source, target, direction, isNegated = false) => {
+    const isVertical = direction.toLowerCase().startsWith('above') || direction.toLowerCase().startsWith('below');
+    let directionElement = direction;
+    if (isNegated) {
+        directionElement = `<span class="is-negated">${direction}</span>`;
+    }
+    
+    if (isVertical) {
+        return `<span class="subject">${source}</span> is ${directionElement} <span class="subject">${target}</span>`;
+    } else {
+        return `<span class="subject">${source}</span> is ${directionElement} of <span class="subject">${target}</span>`;
+    }
 };
 
 // Helper to calculate taxicab distance between two points
@@ -53,21 +60,6 @@ const pickWeightedRandomDirection = (dirCoords, baseWord, neighbors, wordCoordMa
     return pool[Math.floor(Math.random() * pool.length)];
 };
 
-// Helper to create a direction statement with proper grammar
-const createDirectionStatement = (source, target, direction, useNegation = false) => {
-    const statement = direction.toLowerCase().startsWith('above') || direction.toLowerCase().startsWith('below')
-        ? `<span class="subject">${source}</span> is ${useNegation ? '<span class="is-negated">' : ''}${direction.toLowerCase()}${useNegation ? '</span>' : ''} <span class="subject">${target}</span>`
-        : `<span class="subject">${source}</span> is ${useNegation ? '<span class="is-negated">' : ''}${direction}${useNegation ? '</span>' : ''} of <span class="subject">${target}</span>`;
-    return statement;
-};
-
-// Helper to check if premises cancel each other
-const getNetMovement = (premises) => {
-    return premises.reduce((net, premise) => {
-        return addCoords(net, premise);
-    }, [0, 0, 0]);
-};
-
 class Direction2D {
     constructor() {
         this.directions = directionNames['2d'];
@@ -86,20 +78,6 @@ class Direction2D {
 
     initialCoord() {
         return [0, 0, 0];
-    }
-
-    directionToCoord(direction) {
-        switch(direction.toLowerCase()) {
-            case 'north': return [0, 1, 0];
-            case 'south': return [0, -1, 0];
-            case 'east': return [1, 0, 0];
-            case 'west': return [-1, 0, 0];
-            case 'north-east': return [1, 1, 0];
-            case 'north-west': return [-1, 1, 0];
-            case 'south-east': return [1, -1, 0];
-            case 'south-west': return [-1, -1, 0];
-            default: return [0, 0, 0];
-        }
     }
 
     coordToDirection(coord) {
@@ -123,25 +101,52 @@ class Direction3D extends Direction2D {
     constructor() {
         super();
         this.directions = directionNames['3d'];
+        // In 3D space:
+        // x: east(+)/west(-)
+        // y: north(+)/south(-)
+        // z: above(+)/below(-)
         this.dirCoords = [
-            ...this.dirCoords,
-            [0, 0, 1],  // above
-            [0, 0, -1]  // below
+            [0, 0, 0],    // origin
+            [1, 0, 0],    // east
+            [-1, 0, 0],   // west
+            [0, 1, 0],    // north
+            [0, -1, 0],   // south
+            [1, 1, 0],    // north-east
+            [-1, 1, 0],   // north-west
+            [1, -1, 0],   // south-east
+            [-1, -1, 0],  // south-west
+            [0, 0, 1],    // above
+            [0, 0, -1]    // below
         ];
     }
 
-    directionToCoord(direction) {
-        switch(direction.toLowerCase()) {
-            case 'above': return [0, 0, 1];
-            case 'below': return [0, 0, -1];
-            default: return super.directionToCoord(direction);
-        }
-    }
-
     coordToDirection(coord) {
+        // Handle vertical direction first
         if (coord[2] === 1) return 'Above';
         if (coord[2] === -1) return 'Below';
-        return super.coordToDirection(coord);
+        
+        // Then handle horizontal directions
+        if (coord[0] === 0 && coord[1] === 0) return '';
+        
+        // For horizontal movement, use 2D directions
+        const horizontalCoord = [coord[0], coord[1], 0];
+        return super.coordToDirection(horizontalCoord);
+    }
+
+    pickDirection(baseWord, neighbors, wordCoordMap) {
+        // For 3D questions, we want to encourage some vertical movement
+        const hasVerticalNeighbor = (neighbors[baseWord] ?? [])
+            .some(word => {
+                const diff = diffCoords(wordCoordMap[baseWord], wordCoordMap[word]);
+                return diff[2] !== 0;
+            });
+
+        // If no vertical neighbors yet, increase chance of vertical movement
+        if (!hasVerticalNeighbor && Math.random() < 0.3) {
+            return this.dirCoords[Math.random() < 0.5 ? 9 : 10]; // above or below
+        }
+
+        return pickWeightedRandomDirection(this.dirCoords.slice(1), baseWord, neighbors, wordCoordMap);
     }
 }
 
@@ -156,65 +161,20 @@ class DirectionQuestion {
         const items = generateWords(premises + 1, settings);
         const questionPremises = [];
         
-        // Track word coordinates, neighbors, and used directions
+        // Track word coordinates and neighbors
         const wordCoordMap = { [items[0]]: this.generator.initialCoord() };
         const neighbors = { [items[0]]: [] };
         const usedDirCoords = [];
-        const premiseCoords = [];
         
-        // For 3D questions, ensure exactly one height and one direction in 2-premise mode
-        let hasVertical = false;
-        let hasHorizontal = false;
-        const is3DWith2Premises = dimension === '3d' && premises === 2;
-        
-        // Generate premises with branching paths
+        // Generate premises
         for (let i = 0; i < items.length - 1; i++) {
             const currentItem = items[i];
             const nextItem = items[i + 1];
             
-            let dirCoord;
-            if (dimension === '3d') {
-                if (is3DWith2Premises) {
-                    // In 2-premise mode, randomly decide which comes first
-                    const heightFirst = Math.random() < 0.5;
-                    if ((heightFirst && i === 0) || (!heightFirst && i === 1)) {
-                        // Height premise
-                        dirCoord = [0, 0, Math.random() < 0.5 ? 1 : -1];
-                        hasVertical = true;
-                    } else {
-                        // Direction premise
-                        const horizontalDirs = this.generator.dirCoords.filter(c =>
-                            (c[0] !== 0 || c[1] !== 0) && c[2] === 0
-                        );
-                        dirCoord = horizontalDirs[Math.floor(Math.random() * horizontalDirs.length)];
-                        hasHorizontal = true;
-                    }
-                } else {
-                    // For 3+ premises, ensure we have both types but allow more flexibility in order
-                    if (!hasVertical && (i === premises - 2 || Math.random() < 0.5)) {
-                        dirCoord = [0, 0, Math.random() < 0.5 ? 1 : -1];
-                        hasVertical = true;
-                    } else if (!hasHorizontal && (i === premises - 2 || Math.random() < 0.5)) {
-                        const horizontalDirs = this.generator.dirCoords.filter(c =>
-                            (c[0] !== 0 || c[1] !== 0) && c[2] === 0
-                        );
-                        dirCoord = horizontalDirs[Math.floor(Math.random() * horizontalDirs.length)];
-                        hasHorizontal = true;
-                    } else {
-                        dirCoord = this.generator.pickDirection(currentItem, neighbors, wordCoordMap);
-                        if (dirCoord[2] !== 0) hasVertical = true;
-                        if (dirCoord[0] !== 0 || dirCoord[1] !== 0) hasHorizontal = true;
-                    }
-                }
-            } else {
-                // For 2D questions, use weighted random direction
-                dirCoord = this.generator.pickDirection(currentItem, neighbors, wordCoordMap);
-            }
-            
-            // Update position and neighbors
+            // Pick direction and update coordinates
+            const dirCoord = this.generator.pickDirection(currentItem, neighbors, wordCoordMap);
             wordCoordMap[nextItem] = addCoords(wordCoordMap[currentItem], dirCoord);
             usedDirCoords.push(dirCoord);
-            premiseCoords.push(dirCoord);
             
             // Update neighbor relationships
             neighbors[currentItem] = neighbors[currentItem] || [];
@@ -222,52 +182,66 @@ class DirectionQuestion {
             neighbors[nextItem] = neighbors[nextItem] || [];
             neighbors[nextItem].push(currentItem);
             
-            // Create premise statement with proper grammar
+            // Create premise statement
             const direction = this.generator.coordToDirection(dirCoord);
             const useNegation = settings.enableNegation && Math.random() > 0.5;
-            questionPremises.push(createDirectionStatement(nextItem, currentItem, direction, useNegation));
+            questionPremises.push(createDirectionStatement(currentItem, nextItem, direction, useNegation));
         }
-
-        // Check for canceling premises
-        const netMovement = getNetMovement(premiseCoords);
-        if (netMovement.every(v => v === 0)) {
-            // If premises cancel out, regenerate the question
+        
+        // Get actual direction and difference between start and end points
+        const [start, end] = [items[0], items[items.length - 1]];
+        const startCoord = wordCoordMap[start];
+        const endCoord = wordCoordMap[end];
+        const diffCoord = diffCoords(startCoord, endCoord);
+        const actualDirection = normalize(diffCoord);
+        
+        // If there's no direction (points are the same), regenerate
+        if (actualDirection.every(v => v === 0)) {
             return this.createQuestion(settings, dimension);
         }
-
-        // Calculate conclusion direction
-        const [diffCoord, conclusionCoord] = getConclusionCoords(wordCoordMap, items[0], items[items.length - 1]);
         
-        // Randomly decide if conclusion should be valid or invalid
+        // Randomly decide if the conclusion should be valid
         const isValid = Math.random() > 0.5;
         let finalCoord;
         
-        if (isValid) {
-            finalCoord = conclusionCoord;
-        } else {
-            finalCoord = this.incorrectDirections.chooseIncorrectCoord(usedDirCoords, conclusionCoord, diffCoord);
-        }
-
-        // For 3D questions, split into vertical and horizontal conclusions
         if (dimension === '3d') {
-            const verticalCoord = [0, 0, finalCoord[2]];
-            const horizontalCoord = [finalCoord[0], finalCoord[1], 0];
+            // Split into vertical and horizontal components
+            const verticalCoord = [0, 0, actualDirection[2]];
+            const horizontalCoord = [actualDirection[0], actualDirection[1], 0];
             
-            // Only create conclusions for non-zero dimensions
             const conclusions = [];
             
+            // Handle vertical movement if present
             if (verticalCoord[2] !== 0) {
-                const verticalDirection = this.generator.coordToDirection(verticalCoord);
-                const useNegationVertical = settings.enableNegation && Math.random() > 0.5;
-                conclusions.push(createDirectionStatement(items[0], items[items.length - 1], verticalDirection, useNegationVertical));
+                const verticalFinalCoord = isValid ? verticalCoord : [0, 0, -verticalCoord[2]];
+                const verticalDirection = this.generator.coordToDirection(verticalFinalCoord);
+                const useNegation = settings.enableNegation && !isValid;
+                conclusions.push(createDirectionStatement(items[0], items[items.length - 1], verticalDirection, useNegation));
             }
             
+            // Handle horizontal movement if present
             if (horizontalCoord[0] !== 0 || horizontalCoord[1] !== 0) {
-                const horizontalDirection = this.generator.coordToDirection(horizontalCoord);
-                const useNegationHorizontal = settings.enableNegation && Math.random() > 0.5;
-                conclusions.push(createDirectionStatement(items[0], items[items.length - 1], horizontalDirection, useNegationHorizontal));
+                let horizontalFinalCoord;
+                if (isValid) {
+                    horizontalFinalCoord = horizontalCoord;
+                } else {
+                    // Generate incorrect horizontal direction while preserving magnitude
+                    horizontalFinalCoord = this.incorrectDirections.chooseIncorrectCoord(
+                        usedDirCoords.map(coord => [coord[0], coord[1], 0]),
+                        horizontalCoord,
+                        [diffCoord[0], diffCoord[1], 0]
+                    );
+                }
+                const horizontalDirection = this.generator.coordToDirection(horizontalFinalCoord);
+                const useNegation = settings.enableNegation && !isValid;
+                conclusions.push(createDirectionStatement(items[0], items[items.length - 1], horizontalDirection, useNegation));
             }
-
+            
+            // If no movement in any direction, regenerate
+            if (conclusions.length === 0) {
+                return this.createQuestion(settings, dimension);
+            }
+            
             return {
                 type: 'direction3D',
                 category: 'Space 3D',
@@ -278,9 +252,16 @@ class DirectionQuestion {
                 neighbors
             };
         } else {
-            // For 2D questions, create a single conclusion
+            // For 2D questions, generate a single conclusion
+            let finalCoord;
+            if (isValid) {
+                finalCoord = actualDirection;
+            } else {
+                finalCoord = this.incorrectDirections.chooseIncorrectCoord(usedDirCoords, actualDirection, diffCoord);
+            }
+            
             const conclusionDirection = this.generator.coordToDirection(finalCoord);
-            const useNegation = settings.enableNegation && Math.random() > 0.5;
+            const useNegation = settings.enableNegation && !isValid;
             
             return {
                 type: 'direction',
