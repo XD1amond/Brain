@@ -67,6 +67,28 @@ function Grid2D({ wordCoordMap }) {
   );
 }
 
+function DirectionLabel({ position, text }) {
+  return (
+    <Html position={position} center>
+      <div
+        style={{
+          background: 'var(--muted)',
+          color: 'var(--muted-foreground)',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '14px',
+          fontWeight: 500,
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          userSelect: 'none',
+        }}
+      >
+        {text}
+      </div>
+    </Html>
+  );
+}
+
 function Grid3D({ wordCoordMap }) {
   const entries = Object.entries(wordCoordMap);
   const low = [...entries[0][1]];
@@ -85,14 +107,27 @@ function Grid3D({ wordCoordMap }) {
   const scale = 3 / maxDim;
   const spacing = 1.5;
 
+  // Calculate grid extents for label positioning
+  const gridExtent = (dimensions[0] - 1) / 2 * spacing * scale;
+  const labelOffset = gridExtent + 2;
+
   return (
     <group scale={[scale, scale, scale]}>
+      {/* Direction Labels */}
+      <DirectionLabel position={[labelOffset, 0, 0]} text="East" />
+      <DirectionLabel position={[-labelOffset, 0, 0]} text="West" />
+      <DirectionLabel position={[0, 0, -labelOffset]} text="North" />
+      <DirectionLabel position={[0, 0, labelOffset]} text="South" />
+
       {Array(dimensions[2]).fill().map((_, z) =>
         Array(dimensions[1]).fill().map((_, y) =>
           Array(dimensions[0]).fill().map((_, x) => {
-            const xPos = (x - (dimensions[0] - 1) / 2) * spacing;
-            const yPos = (z - (dimensions[2] - 1) / 2) * spacing;
-            const zPos = ((dimensions[1] - 1) / 2 - y) * spacing;
+            // x: east(+)/west(-) - left/right (inverted)
+            const xPos = -(x - (dimensions[0] - 1) / 2) * spacing;
+            // y: north(+)/south(-) - forward/back
+            const yPos = ((dimensions[1] - 1) / 2 - y) * spacing;
+            // z: above(+)/below(-) - up/down
+            const zPos = (z - (dimensions[2] - 1) / 2) * spacing;
 
             const word = entries.find(([_, coord]) =>
               coord[0] - low[0] === x &&
@@ -101,7 +136,7 @@ function Grid3D({ wordCoordMap }) {
             )?.[0];
 
             return (
-              <group key={`${x}-${y}-${z}`} position={[xPos, yPos, zPos]}>
+              <group key={`${x}-${y}-${z}`} position={[xPos, -zPos, -yPos]}>
                 <mesh>
                   <boxGeometry args={[1, 1, 1]} />
                   <meshPhongMaterial
@@ -199,7 +234,7 @@ function ExplanationDialog({ isOpen, onClose, question }) {
       // Use 3D grid for 3D/4D direction questions
       return (
         <div className="w-full h-[500px]">
-          <Canvas camera={{ position: [4, 3, 4], fov: 45 }}>
+          <Canvas camera={{ position: [4, 4, 6], fov: 45 }}>
             <ambientLight intensity={0.5} />
             <pointLight position={[10, 10, 10]} />
             <Grid3D wordCoordMap={question.wordCoordMap} />
