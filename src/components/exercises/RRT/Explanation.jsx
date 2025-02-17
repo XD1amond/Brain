@@ -25,7 +25,7 @@ function createGridFromMap(wordCoordMap) {
 
   // Fill grid with words
   for (const [word, coord] of entries) {
-    const x = coord[0] - low[0];
+    const x = dimensions[0] - 1 - (coord[0] - low[0]);
     const y = coord[1] - low[1];
     grid[y][x] = word;
   }
@@ -62,7 +62,7 @@ function Grid2D({ wordCoordMap }) {
             )}
           </div>
         ))
-      )).reverse()}
+      ))}
     </div>
   );
 }
