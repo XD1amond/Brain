@@ -6,6 +6,7 @@ import { generateQuestion } from './generators';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { getTodayDate } from '@/lib/dateUtils';
 import { Settings } from './Settings';
+import { ExplanationButton } from './Explanation';
 
 export default function RRT() {
   const [rrtAnalytics, setRrtAnalytics] = useLocalStorage('rrt_analytics', []);
@@ -482,15 +483,18 @@ Work quickly but accurately - you have limited time for each question. Your scor
                           )}
                         </div>
                         <div className="flex justify-between items-center text-sm text-muted-foreground">
-                          <span>
-                            Response: {
-                              item.userAnswer === 'timeout'
-                                ? 'Timed Out'
-                                : item.userAnswer
-                                ? 'True'
-                                : 'False'
-                            }
-                          </span>
+                          <div className="flex items-center gap-3">
+                            <span>
+                              Response: {
+                                item.userAnswer === 'timeout'
+                                  ? 'Timed Out'
+                                  : item.userAnswer
+                                  ? 'True'
+                                  : 'False'
+                              }
+                            </span>
+                            <ExplanationButton question={item} />
+                          </div>
                           <span>
                             {Math.round(item.responseTime / 1000)}s
                           </span>
