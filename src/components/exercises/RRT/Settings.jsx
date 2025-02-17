@@ -27,13 +27,26 @@ function SettingsGroup({ title, children, defaultExpanded = false }) {
 export function Settings({ settings, onSettingsChange }) {
   const handleChange = (key, value) => {
     onSettingsChange(prev => {
+      // For non-general premises inputs, skip value 1
+      if (key.toLowerCase().includes('premises') && key !== 'globalPremises') {
+        const oldValue = prev[key];
+        // If decreasing from 2 to 1, jump to 0
+        if (oldValue === 2 && value === 1) {
+          value = 0;
+        }
+        // If increasing from 0 to 1, jump to 2
+        if (oldValue === 0 && value === 1) {
+          value = 2;
+        }
+      }
+
       const newSettings = {
         ...prev,
         [key]: value
       };
 
       // Check if at least one word type is enabled
-      const hasWordType = 
+      const hasWordType =
         newSettings.useNonsenseWords ||
         newSettings.useGarbageWords ||
         newSettings.useMeaningfulWords ||
@@ -91,7 +104,6 @@ export function Settings({ settings, onSettingsChange }) {
             <input
               type="number"
               min="2"
-              max="6"
               value={settings.globalPremises}
               onChange={e => handleChange('globalPremises', parseInt(e.target.value))}
               className="form-input w-20"
@@ -124,8 +136,7 @@ export function Settings({ settings, onSettingsChange }) {
                 <label className="form-label">Premises</label>
                 <input
                   type="number"
-                  min="2"
-                  max="6"
+                  min="0"
                   value={settings.distinctionPremises}
                   onChange={e => handleChange('distinctionPremises', parseInt(e.target.value))}
                   className="form-input w-20"
@@ -151,8 +162,7 @@ export function Settings({ settings, onSettingsChange }) {
                   <label className="form-label">Premises</label>
                   <input
                     type="number"
-                    min="2"
-                    max="6"
+                    min="0"
                     value={settings.comparisonPremises}
                     onChange={e => handleChange('comparisonPremises', parseInt(e.target.value))}
                     className="form-input w-20"
@@ -179,8 +189,7 @@ export function Settings({ settings, onSettingsChange }) {
                   <label className="form-label">Premises</label>
                   <input
                     type="number"
-                    min="2"
-                    max="6"
+                    min="0"
                     value={settings.temporalPremises}
                     onChange={e => handleChange('temporalPremises', parseInt(e.target.value))}
                     className="form-input w-20"
@@ -206,8 +215,7 @@ export function Settings({ settings, onSettingsChange }) {
                 <label className="form-label">Premises</label>
                 <input
                   type="number"
-                  min="2"
-                  max="6"
+                  min="0"
                   value={settings.directionPremises}
                   onChange={e => handleChange('directionPremises', parseInt(e.target.value))}
                   className="form-input w-20"
@@ -232,8 +240,7 @@ export function Settings({ settings, onSettingsChange }) {
                 <label className="form-label">Premises</label>
                 <input
                   type="number"
-                  min="2"
-                  max="6"
+                  min="0"
                   value={settings.direction3DPremises}
                   onChange={e => handleChange('direction3DPremises', parseInt(e.target.value))}
                   className="form-input w-20"
