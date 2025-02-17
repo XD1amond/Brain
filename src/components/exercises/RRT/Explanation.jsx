@@ -38,31 +38,39 @@ function Grid2D({ wordCoordMap }) {
   const [width, height] = dimensions;
 
   return (
-    <div 
-      className="grid gap-2 mx-auto"
-      style={{ 
-        gridTemplateColumns: `repeat(${width}, minmax(60px, 1fr))`,
-        width: `${Math.min(width * 70, 500)}px`
-      }}
-    >
-      {grid.map((row, y) => (
-        row.map((word, x) => (
-          <div
-            key={`${x}-${y}`}
-            className={cn(
-              "aspect-square rounded-lg transition-all duration-300 flex items-center justify-center p-1",
-              "bg-card border border-border",
-              word ? "bg-primary/10" : "bg-card"
-            )}
-          >
-            {word && (
-              <div className="text-primary font-medium text-center text-sm break-words w-full">
-                {word}
-              </div>
-            )}
-          </div>
-        ))
-      ))}
+    <div className="relative mx-auto my-8" style={{ width: `${Math.min(width * 70 + 100, 600)}px` }}>
+      {/* Direction Labels */}
+      <div className="absolute left-1/2 -top-12 -translate-x-1/2 bg-muted text-muted-foreground px-2 py-1 rounded text-sm font-medium">North</div>
+      <div className="absolute left-1/2 -bottom-12 -translate-x-1/2 bg-muted text-muted-foreground px-2 py-1 rounded text-sm font-medium">South</div>
+      <div className="absolute top-1/2 -left-16 -translate-y-1/2 bg-muted text-muted-foreground px-2 py-1 rounded text-sm font-medium">West</div>
+      <div className="absolute top-1/2 -right-16 -translate-y-1/2 bg-muted text-muted-foreground px-2 py-1 rounded text-sm font-medium">East</div>
+      
+      <div
+        className="grid gap-2 mx-auto"
+        style={{
+          gridTemplateColumns: `repeat(${width}, minmax(60px, 1fr))`,
+          width: `${Math.min(width * 70, 500)}px`
+        }}
+      >
+        {grid.map((row, y) => (
+          row.map((word, x) => (
+            <div
+              key={`${x}-${y}`}
+              className={cn(
+                "aspect-square rounded-lg transition-all duration-300 flex items-center justify-center p-1",
+                "bg-card border border-border",
+                word ? "bg-primary/10" : "bg-card"
+              )}
+            >
+              {word && (
+                <div className="text-primary font-medium text-center text-sm break-words w-full">
+                  {word}
+                </div>
+              )}
+            </div>
+          ))
+        ))}
+      </div>
     </div>
   );
 }
@@ -225,7 +233,7 @@ function ExplanationDialog({ isOpen, onClose, question }) {
       // Use 2D grid for 2D direction questions
       if (question.type === 'direction') {
         return (
-          <div className="w-full p-4">
+          <div className="w-full p-8">
             <Grid2D wordCoordMap={question.wordCoordMap} />
           </div>
         );
