@@ -245,12 +245,12 @@ export default function NBack() {
 
   const [sequence, setSequence] = useState([]);
   const [current, setCurrent] = useState(null);
-  const [scores, setScores] = useState({
-    position: { correct: 0, total: 0 },
-    color: { correct: 0, total: 0 },
-    audio: { correct: 0, total: 0 },
-    shape: { correct: 0, total: 0 },
-    number: { correct: 0, total: 0 }
+  const [score, setScore] = useState({
+    position: { correct: 0, incorrect: 0 },
+    color: { correct: 0, incorrect: 0 },
+    audio: { correct: 0, incorrect: 0 },
+    shape: { correct: 0, incorrect: 0 },
+    number: { correct: 0, incorrect: 0 }
   });
 
   // Track which controls are toggled for the current turn
@@ -419,9 +419,9 @@ export default function NBack() {
     
     if (!prevStimulus || !prevTarget) return;
     
-    // Update scores for each toggled control from the previous turn
-    Object.entries(toggledControls).forEach(([type, isToggled]) => {
-      if (!isToggled) return;
+    // Check each stimulus type for matches and update scores
+    Object.entries(settings.stimuli).forEach(([type, enabled]) => {
+      if (!enabled) return;
       
       let isMatch = false;
       switch (type) {
@@ -449,11 +449,18 @@ export default function NBack() {
           break;
       }
 
-      setScores(prev => ({
+      const wasToggled = toggledControls[type];
+
+      // Count as correct if:
+      // 1. There was a match and user pressed the button (wasToggled true)
+      // 2. There was no match and user didn't press the button (wasToggled false)
+      const isCorrect = (isMatch && wasToggled) || (!isMatch && !wasToggled);
+
+      setScore(prev => ({
         ...prev,
         [type]: {
-          correct: prev[type].correct + (isMatch ? 1 : 0),
-          total: prev[type].total + 1
+          correct: prev[type].correct + (isCorrect ? 1 : 0),
+          incorrect: prev[type].incorrect + (!isCorrect ? 1 : 0)
         }
       }));
     });
@@ -500,21 +507,33 @@ export default function NBack() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 flex gap-8">
-        <div className="w-[200px] bg-card rounded-xl p-6 shadow-lg">
-          <div className="space-y-2">
-            {Object.entries(scores).map(([type, score]) => (
-              settings.stimuli[type] && (
-                <div key={type} className="flex flex-col text-sm">
-                  <span className="capitalize text-muted-foreground">{type}:</span>
-                  <span className="font-medium text-foreground">
-                    {score.correct}/{score.total}
-                    {score.total > 0 &&
-                      ` (${Math.round(score.correct/score.total * 100)}%)`
-                    }
-                  </span>
-                </div>
-              )
-            ))}
+        <div className="w-[200px] mt-[56px]">
+          <div className="bg-card rounded-xl p-6 shadow-lg space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Score</h2>
+            </div>
+            <div className="space-y-4">
+              {Object.entries(score).map(([type, stats]) => (
+                settings.stimuli[type] && (
+                  <div key={type} className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="capitalize font-medium">{type}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {Math.round((stats.correct / Math.max(stats.correct + stats.incorrect, 1)) * 100)}%
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="text-green-500">
+                        +{stats.correct}
+                      </div>
+                      <div className="text-red-500">
+                        -{stats.incorrect}
+                      </div>
+                    </div>
+                  </div>
+                )
+              ))}
+            </div>
           </div>
         </div>
         
@@ -598,13 +617,19 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
               if (isPlaying) {
                 setIsPlaying(false);
                 
-                // Calculate overall percentage correct across all enabled stimuli
-                const enabledScores = Object.entries(scores)
+                // Calculate overall score metrics across all enabled stimuli
+                const enabledScores = Object.entries(score)
                   .filter(([type]) => settings.stimuli[type]);
                 
-                const totalCorrect = enabledScores.reduce((sum, [_, score]) => sum + score.correct, 0);
-                const totalAttempts = enabledScores.reduce((sum, [_, score]) => sum + score.total, 0);
-                const percentageCorrect = totalAttempts > 0 ? (totalCorrect / totalAttempts) * 100 : 0;
+                const totals = enabledScores.reduce((acc, [_, stats]) => ({
+                  correct: acc.correct + stats.correct,
+                  incorrect: acc.incorrect + stats.incorrect
+                }), { correct: 0, incorrect: 0 });
+
+                const totalAttempts = totals.correct + totals.incorrect;
+                const percentageCorrect = totalAttempts > 0
+                  ? (totals.correct / totalAttempts) * 100
+                  : 0;
 
                 // Get active stimuli types
                 const activeStimuli = Object.entries(settings.stimuli)
