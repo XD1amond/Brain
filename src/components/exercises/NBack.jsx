@@ -512,6 +512,28 @@ export default function NBack() {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Score</h2>
             </div>
+            {/* Total Score */}
+            <div className="border-b border-border pb-4 mb-4">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Total</span>
+                <span className="text-lg font-semibold">
+                  {(() => {
+                    const enabledScores = Object.entries(score)
+                      .filter(([type]) => settings.stimuli[type]);
+                    
+                    const totals = enabledScores.reduce((acc, [_, stats]) => ({
+                      correct: acc.correct + stats.correct,
+                      incorrect: acc.incorrect + stats.incorrect
+                    }), { correct: 0, incorrect: 0 });
+
+                    const totalAttempts = totals.correct + totals.incorrect;
+                    return totalAttempts > 0
+                      ? `${Math.round((totals.correct / totalAttempts) * 100)}%`
+                      : '0%';
+                  })()}
+                </span>
+              </div>
+            </div>
             <div className="space-y-4">
               {Object.entries(score).map(([type, stats]) => (
                 settings.stimuli[type] && (
