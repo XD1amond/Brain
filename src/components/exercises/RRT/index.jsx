@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { HelpButton } from '@/components/HelpButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -7,6 +8,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { getTodayDate } from '@/lib/dateUtils';
 import { Settings } from './Settings';
 import { ExplanationButton } from './Explanation';
+import { validatePreset, sanitizeInput, decompressSettings } from './constants/presets';
 
 export default function RRT() {
   const [rrtAnalytics, setRrtAnalytics] = useLocalStorage('rrt_analytics', []);
@@ -25,6 +27,8 @@ export default function RRT() {
     false: 'destructive'
   });
 
+  const [userPresets, setUserPresets] = useLocalStorage('rrt_presets', []);
+  const [presetName, setPresetName] = useState('');
   const [settings, setSettings] = useLocalStorage('rrt-settings', {
     // General Settings
     globalPremises: 2,
@@ -157,12 +161,85 @@ const generateNewQuestion = useCallback(() => {
   requestAnimationFrame(updateStates);
 }, [settings]);
 
-// Generate initial question on mount
+// Load preset from URL when settings are initialized
 useEffect(() => {
-  if (!currentQuestion && canStart) {
+  const loadPresetFromURL = () => {
+    const urlBeforeHash = window.location.href.split('#')[0];
+    const url = new URL(urlBeforeHash);
+    const presetParam = url.searchParams.get('preset');
+    
+    if (presetParam) {
+      try {
+        const parsedData = JSON.parse(decodeURIComponent(presetParam));
+        const { id, name, settings: compressedSettings } = parsedData;
+        
+        // Sanitize inputs
+        const sanitizedName = sanitizeInput(name) || 'Imported Settings';
+        
+        // Decompress settings and merge with defaults
+        const decompressedSettings = {
+          ...settings, // Start with current settings as defaults
+          ...decompressSettings(compressedSettings) // Override with decompressed values
+        };
+        
+        // Validate preset
+        if (validatePreset({ name: sanitizedName, settings: decompressedSettings })) {
+          // Check if preset already exists
+          if (!userPresets.some(p => p.id === id)) {
+            const newPreset = {
+              id,
+              name: sanitizedName,
+              settings: decompressedSettings,
+              createdAt: Date.now()
+            };
+            setUserPresets(prev => [...prev, newPreset]);
+          }
+          
+          // Apply new settings
+          const newSettings = {
+            ...decompressedSettings,
+            _lastUpdated: Date.now()
+          };
+          
+          // Update localStorage and state
+          window.localStorage.setItem('rrt-settings', JSON.stringify(newSettings));
+          setSettings(newSettings);
+          setPresetName(sanitizedName);
+          
+          toast.success('Preset loaded successfully');
+          
+          // Clean up URL
+          const currentUrl = new URL(window.location.href);
+          const urlBeforeHash = currentUrl.href.split('#')[0];
+          const hash = currentUrl.hash;
+          const cleanUrl = new URL(urlBeforeHash);
+          cleanUrl.searchParams.delete('preset');
+          window.history.replaceState({}, '', cleanUrl.toString() + hash);
+          
+          // Force a new question with the new settings
+          setTimeout(() => {
+            generateNewQuestion();
+          }, 0);
+        } else {
+          toast.error('Invalid preset format');
+        }
+      } catch (error) {
+        toast.error('Failed to load shared preset');
+      }
+    }
+  };
+  
+  // Only load preset once settings are initialized
+  if (settings.globalPremises) {
+    loadPresetFromURL();
+  }
+}, [settings.globalPremises]); // Depend on a key setting to ensure initialization
+
+useEffect(() => {
+  if (canStart) {
     generateNewQuestion();
   }
-}, [canStart, currentQuestion, generateNewQuestion]);
+}, [canStart, settings, generateNewQuestion]);
 
 // Question timer
 useEffect(() => {
@@ -549,7 +626,14 @@ Work quickly but accurately - you have limited time for each question. Your scor
               </div>
             </div>
 
-            <Settings settings={settings} onSettingsChange={setSettings} />
+            <Settings
+              settings={settings}
+              onSettingsChange={setSettings}
+              userPresets={userPresets}
+              setUserPresets={setUserPresets}
+              presetName={presetName}
+              setPresetName={setPresetName}
+            />
           </div>
         </div>
       </div>
