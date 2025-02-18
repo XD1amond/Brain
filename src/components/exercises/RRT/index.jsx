@@ -222,12 +222,14 @@ const handleAnswer = (answer) => {
 
     const isCorrect = answer === currentQuestion.isValid;
     const responseTime = Date.now() - questionStartTime;
+    const timerValue = settings[`${currentQuestion.type}Timer`] || settings.generalTimer;
     const answeredQuestion = {
       ...currentQuestion,
       userAnswer: answer,
       isCorrect,
       answeredAt: Date.now(),
-      responseTime
+      responseTime,
+      timerValue
     };
     
     // Batch state updates to prevent race conditions
@@ -263,13 +265,15 @@ const handleAnswer = (answer) => {
     setIsTimerRunning(false);
     setTimeLeft(0);
 
-    const responseTime = (settings[`${currentQuestion.type}Timer`] || settings.generalTimer || 30) * 1000;
+    const timerValue = settings[`${currentQuestion.type}Timer`] || settings.generalTimer || 30;
+    const responseTime = timerValue * 1000;
     const timedOutQuestion = {
       ...currentQuestion,
       userAnswer: 'timeout',
       isCorrect: false,
       answeredAt: Date.now(),
-      responseTime
+      responseTime,
+      timerValue
     };
     
     // Use a single state update batch to prevent race conditions
@@ -466,6 +470,13 @@ Work quickly but accurately - you have limited time for each question. Your scor
                           : "bg-destructive/10 border-destructive/20"
                       )}
                     >
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-medium">
+                          {item.type === 'direction' ? 'Space 2D' :
+                           item.type === 'direction3D' ? 'Space 3D' :
+                           item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+                        </h4>
+                      </div>
                       <div className="space-y-2">
                         {item.premises.map((premise, i) => (
                           <p key={i} dangerouslySetInnerHTML={{ __html: premise }} />
@@ -496,7 +507,7 @@ Work quickly but accurately - you have limited time for each question. Your scor
                             <ExplanationButton question={item} />
                           </div>
                           <span>
-                            {Math.round(item.responseTime / 1000)}s
+                            {Math.round(item.responseTime / 1000)}s/{item.timerValue}s
                           </span>
                         </div>
                       </div>
