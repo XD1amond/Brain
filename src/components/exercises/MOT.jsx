@@ -3,7 +3,7 @@ import { HelpButton } from '@/components/HelpButton';
 import { Canvas } from '@react-three/fiber';
 import { PerspectiveCamera, Environment } from '@react-three/drei';
 import { Physics, useSphere } from '@react-three/cannon';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -171,6 +171,8 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selecte
 }
 export default function MOT() {
   const [motAnalytics, setMotAnalytics] = useLocalStorage('mot_analytics', []);
+  const [history, setHistory] = useLocalStorage('mot_history', []);
+  const [expandedHistoryItem, setExpandedHistoryItem] = useState(null);
   const [startTime, setStartTime] = useState(null);
 
   const [settings, setSettings] = useLocalStorage('mot-settings', {
@@ -299,14 +301,35 @@ export default function MOT() {
         }
       };
       setMotAnalytics(prev => [...prev, session]);
+
+      // Add to history
+      const historyItem = {
+        timestamp: Date.now(),
+        settings: { ...settings },
+        results: {
+          correct,
+          total: settings.numTargets,
+          duration,
+          percentageCorrect: (correct / settings.numTargets) * 100
+        }
+      };
+      setHistory(prev => [historyItem, ...prev]);
     }
     setStartTime(null);
   };
 
+  const useHistorySettings = (historyItem) => {
+    setSettings(historyItem.settings);
+    setExpandedHistoryItem(null);
+    setGameState('setup');
+    setShowingResults(false);
+    setSelectedIndices([]);
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 flex gap-8">
-        <div className="flex-1 bg-card rounded-xl overflow-hidden shadow-lg relative">
+      <div className="container mx-auto px-4 py-8 grid grid-cols-[1fr_350px] gap-8">
+        <div className="bg-card rounded-xl overflow-hidden shadow-lg relative h-[600px]">
           <div className="absolute top-4 right-4 z-10 bg-background/80 backdrop-blur-sm px-6 py-2 rounded-lg font-semibold">
             Score: <span className="text-primary">{score}</span>
           </div>
@@ -440,6 +463,94 @@ The more accurately you identify the original balls, the higher your score!" />
                 >
                   Return to Settings
                 </button>
+              </div>
+            </div>
+          )}
+
+
+          {history.length > 0 && (
+            <div className="bg-card rounded-xl p-6 shadow-lg mt-6">
+              <h3 className="text-lg font-medium mb-4">History</h3>
+              <div className="space-y-4">
+                {history.map((item, index) => (
+                  <div
+                    key={item.timestamp}
+                    className={cn(
+                      "p-4 rounded-lg border",
+                      item.results.correct === item.results.total
+                        ? "bg-success/10 border-success/20"
+                        : "bg-destructive/10 border-destructive/20"
+                    )}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="space-y-1">
+                        <h4 className="font-medium">
+                          Score: {item.results.correct}/{item.results.total}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(item.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setExpandedHistoryItem(expandedHistoryItem === index ? null : index)}
+                        className="p-2 hover:bg-background/50 rounded-lg transition-colors"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className={cn(
+                            "w-4 h-4 transition-transform",
+                            expandedHistoryItem === index ? "transform rotate-180" : ""
+                          )}
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <AnimatePresence>
+                      {expandedHistoryItem === index && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="pt-4 border-t border-border mt-2 space-y-2">
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">Total Balls:</span>{" "}
+                              {item.settings.numBalls}
+                            </p>
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">Tracking Balls:</span>{" "}
+                              {item.settings.numTargets}
+                            </p>
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">Ball Speed:</span>{" "}
+                              {item.settings.velocity}
+                            </p>
+                            <p className="text-sm">
+                              <span className="text-muted-foreground">Tracking Time:</span>{" "}
+                              {item.settings.trackingTime}s
+                            </p>
+                            <button
+                              onClick={() => useHistorySettings(item)}
+                              className="w-full mt-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors text-sm"
+                            >
+                              Use These Settings
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ))}
               </div>
             </div>
           )}

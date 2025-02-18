@@ -2,11 +2,14 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { PerspectiveCamera, Environment } from '@react-three/drei';
 import { Physics, useSphere } from '@react-three/cannon';
-import { motion } from 'framer-motion';
 import * as THREE from 'three';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Room } from './Room';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
+// Ball component unchanged
 function Ball({ position, isHighlighted, isSelectable, onClick, velocity, gameState }) {
   const materialRef = useRef();
   
@@ -166,15 +169,16 @@ export default function MOT() {
   const [settings, setSettings] = useLocalStorage('mot-settings', {
     numBalls: 8,
     numTargets: 3,
-    rememberTime: 3, // Time to memorize the highlighted balls
+    rememberTime: 3,
     trackingTime: 10,
     velocity: 5,
   });
+  const [history, setHistory] = useLocalStorage('mot_history', []);
+  const [expandedHistoryItem, setExpandedHistoryItem] = useState(null);
   const [gameState, setGameState] = useState('setup');
   const [balls, setBalls] = useState(() => {
-    // Initialize balls with random positions
     const initialBalls = [];
-    for (let i = 0; i < 8; i++) { // Start with default number of balls
+    for (let i = 0; i < 8; i++) {
       initialBalls.push({
         position: [
           (Math.random() - 0.5) * 6,
@@ -189,9 +193,10 @@ export default function MOT() {
   const [selectedIndices, setSelectedIndices] = useState([]);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [startTime, setStartTime] = useState(null);
+  const { recordSession } = useAnalytics();
 
   const initializeBalls = () => {
-    // Create new balls
     const newBalls = [];
     for (let i = 0; i < settings.numBalls; i++) {
       newBalls.push({
@@ -204,7 +209,6 @@ export default function MOT() {
     }
     setBalls(newBalls);
 
-    // Select target balls
     const newTargetIndices = [];
     while (newTargetIndices.length < settings.numTargets) {
       const index = Math.floor(Math.random() * settings.numBalls);
@@ -214,19 +218,16 @@ export default function MOT() {
     }
     setTargetIndices(newTargetIndices);
     
-    // Start remember phase with timer
     setGameState('ready');
     setTimeLeft(settings.rememberTime);
   };
 
-  // Handle game state transitions and timers
   useEffect(() => {
     if (!gameState || gameState === 'setup' || gameState === 'selection' || gameState === 'results') return;
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          // Transition states
           if (gameState === 'ready') {
             setGameState('tracking');
             return settings.trackingTime;
@@ -243,6 +244,12 @@ export default function MOT() {
     return () => clearInterval(timer);
   }, [gameState, settings.trackingTime, settings.rememberTime]);
 
+  useEffect(() => {
+    if (gameState === 'ready') {
+      setStartTime(Date.now());
+    }
+  }, [gameState]);
+
   const handleBallClick = (index) => {
     if (gameState !== 'selection') return;
 
@@ -257,25 +264,14 @@ export default function MOT() {
     });
   };
 
-  const { recordSession } = useAnalytics();
-  const [startTime, setStartTime] = useState(null);
-
-  // Set start time when starting exercise
-  useEffect(() => {
-    if (gameState === 'ready') {
-      setStartTime(Date.now());
-    }
-  }, [gameState]);
-
   const checkResults = () => {
     const correct = selectedIndices.filter(index =>
       targetIndices.includes(index)
     ).length;
     setScore(prev => prev + correct);
     
-    // Record analytics
     if (startTime) {
-      const sessionDuration = Math.round((Date.now() - startTime) / 1000 / 60); // Convert to minutes
+      const sessionDuration = Math.round((Date.now() - startTime) / 1000 / 60);
       const percentageCorrect = (correct / settings.numTargets) * 100;
       
       recordSession({
@@ -287,6 +283,18 @@ export default function MOT() {
           percentageCorrect
         }
       });
+
+      const historyItem = {
+        timestamp: Date.now(),
+        settings: { ...settings },
+        results: {
+          correct,
+          total: settings.numTargets,
+          duration: sessionDuration,
+          percentageCorrect
+        }
+      };
+      setHistory(prev => [historyItem, ...prev]);
       
       setStartTime(null);
     }
@@ -294,193 +302,289 @@ export default function MOT() {
     setGameState('results');
   };
 
+  const useHistorySettings = (historyItem) => {
+    setSettings(historyItem.settings);
+    setGameState('setup');
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 flex gap-8">
-        <div className="flex-1 bg-card rounded-xl overflow-hidden shadow-lg relative">
-          <div className="absolute top-4 right-4 z-10 bg-background/80 backdrop-blur-sm px-6 py-2 rounded-lg font-semibold">
-            Score: <span className="text-primary">{score}</span>
-          </div>
-          
-          {(gameState === 'ready' || gameState === 'tracking' || gameState === 'selection') && (
-            <div className="absolute top-4 left-4 right-4 z-10">
-              <div className="h-1 bg-background/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-1000 ease-linear"
-                  style={{
-                    width: `${(timeLeft / (gameState === 'ready' ? settings.rememberTime : settings.trackingTime)) * 100}%`
-                  }}
-                />
+    <div className="bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-8">
+          <div className="space-y-6">
+            <div className="bg-card rounded-xl overflow-hidden shadow-lg relative h-[600px]">
+              <div className="absolute top-4 right-4 z-10 bg-background/80 backdrop-blur-sm px-6 py-2 rounded-lg font-semibold">
+                Score: <span className="text-primary">{score}</span>
+              </div>
+              
+              {(gameState === 'ready' || gameState === 'tracking' || gameState === 'selection') && (
+                <div className="absolute top-4 left-4 right-4 z-10">
+                  <div className="h-1 bg-background/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-1000 ease-linear"
+                      style={{
+                        width: `${(timeLeft / (gameState === 'ready' ? settings.rememberTime : settings.trackingTime)) * 100}%`
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <div className="w-full h-[600px]">
+                <Canvas shadows>
+                  <Scene
+                    balls={balls}
+                    targetIndices={targetIndices}
+                    gameState={gameState}
+                    onBallClick={handleBallClick}
+                    velocity={settings.velocity}
+                  />
+                </Canvas>
               </div>
             </div>
-          )}
-          
-          <div className="w-full h-[600px]">
-            <Canvas shadows>
-              <Scene
-                balls={balls}
-                targetIndices={targetIndices}
-                gameState={gameState}
-                onBallClick={handleBallClick}
-                velocity={settings.velocity}
-              />
-            </Canvas>
           </div>
-        </div>
 
-        <div className="w-[350px] space-y-4">
-          <div className="bg-card rounded-xl p-6 shadow-lg">
-            <h2 className="text-2xl font-bold mb-6">3D Multiple Object Tracking</h2>
-            
-            {gameState === 'setup' && (
-              <div className="space-y-6">
-                <div className="p-4 bg-primary/5 rounded-lg">
-                  <h3 className="font-semibold mb-2">Exercise Settings</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Configure the difficulty level and parameters for your training session.
-                  </p>
-                </div>
-
+          <div className="w-[350px] space-y-4 h-auto">
+            <div className="bg-card rounded-xl p-6 shadow-lg">
+              <h2 className="text-2xl font-bold mb-6">3D Multiple Object Tracking</h2>
+              
+              {gameState === 'setup' && (
                 <div className="space-y-6">
-                  <SettingSlider
-                    label="Number of Balls"
-                    value={settings.numBalls}
-                    onChange={(value) => setSettings(prev => ({
-                      ...prev,
-                      numBalls: value
-                    }))}
-                    min={4}
-                    max={20}
-                  />
+                  <div className="p-4 bg-primary/5 rounded-lg">
+                    <h3 className="font-semibold mb-2">Exercise Settings</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Configure the difficulty level and parameters for your training session.
+                    </p>
+                  </div>
 
-                  <SettingSlider
-                    label="Target Balls"
-                    value={settings.numTargets}
-                    onChange={(value) => setSettings(prev => ({
-                      ...prev,
-                      numTargets: Math.min(value, settings.numBalls - 1)
-                    }))}
-                    min={1}
-                    max={settings.numBalls - 1}
-                  />
+                  <div className="space-y-6">
+                    <SettingSlider
+                      label="Number of Balls"
+                      value={settings.numBalls}
+                      onChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        numBalls: value
+                      }))}
+                      min={4}
+                      max={20}
+                    />
 
-                  <SettingSlider
-                    label="Tracking Time (s)"
-                    value={settings.trackingTime}
-                    onChange={(value) => setSettings(prev => ({
-                      ...prev,
-                      trackingTime: value
-                    }))}
-                    min={5}
-                    max={30}
-                  />
+                    <SettingSlider
+                      label="Target Balls"
+                      value={settings.numTargets}
+                      onChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        numTargets: Math.min(value, settings.numBalls - 1)
+                      }))}
+                      min={1}
+                      max={settings.numBalls - 1}
+                    />
 
-                  <SettingSlider
-                    label="Remember Time (s)"
-                    value={settings.rememberTime}
-                    onChange={(value) => setSettings(prev => ({
-                      ...prev,
-                      rememberTime: value
-                    }))}
-                    min={1}
-                    max={10}
-                    step={1}
-                  />
+                    <SettingSlider
+                      label="Tracking Time (s)"
+                      value={settings.trackingTime}
+                      onChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        trackingTime: value
+                      }))}
+                      min={5}
+                      max={30}
+                    />
 
-                  <SettingSlider
-                    label="Ball Speed"
-                    value={settings.velocity}
-                    onChange={(value) => setSettings(prev => ({
-                      ...prev,
-                      velocity: value
-                    }))}
-                    min={1}
-                    max={10}
-                    step={0.5}
-                  />
+                    <SettingSlider
+                      label="Remember Time (s)"
+                      value={settings.rememberTime}
+                      onChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        rememberTime: value
+                      }))}
+                      min={1}
+                      max={10}
+                      step={1}
+                    />
+
+                    <SettingSlider
+                      label="Ball Speed"
+                      value={settings.velocity}
+                      onChange={(value) => setSettings(prev => ({
+                        ...prev,
+                        velocity: value
+                      }))}
+                      min={1}
+                      max={10}
+                      step={0.5}
+                    />
+                  </div>
+
+                  <button
+                    onClick={initializeBalls}
+                    className="w-full py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
+                  >
+                    Start Exercise
+                  </button>
                 </div>
+              )}
 
-                <button
-                  onClick={initializeBalls}
-                  className="w-full py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
-                >
-                  Start Exercise
-                </button>
-              </div>
-            )}
-
-            {gameState === 'ready' && (
-              <div className="space-y-4">
-                <div className="p-4 bg-primary/5 rounded-lg">
-                  <h3 className="font-semibold mb-2">Remember These Balls</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Pay attention to the highlighted balls. They will start moving in {timeLeft} seconds.
-                  </p>
+              {gameState === 'ready' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-primary/5 rounded-lg">
+                    <h3 className="font-semibold mb-2">Remember These Balls</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Pay attention to the highlighted balls. They will start moving in {timeLeft} seconds.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {gameState === 'selection' && (
-              <div className="space-y-4">
-                <div className="p-4 bg-primary/5 rounded-lg">
-                  <h3 className="font-semibold mb-2">Select Target Balls</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Click on the balls you were tracking.
-                  </p>
-                  <p className="mt-2 font-medium">
-                    Selected: {selectedIndices.length}/{settings.numTargets}
-                  </p>
+              {gameState === 'selection' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-primary/5 rounded-lg">
+                    <h3 className="font-semibold mb-2">Select Target Balls</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Click on the balls you were tracking.
+                    </p>
+                    <p className="mt-2 font-medium">
+                      Selected: {selectedIndices.length}/{settings.numTargets}
+                    </p>
+                  </div>
+                  <button
+                    onClick={checkResults}
+                    disabled={selectedIndices.length !== settings.numTargets}
+                    className={cn(
+                      "w-full py-3 rounded-lg font-medium transition-colors",
+                      selectedIndices.length === settings.numTargets
+                        ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+                        : "bg-muted text-muted-foreground cursor-not-allowed"
+                    )}
+                  >
+                    Check Results
+                  </button>
                 </div>
-                <button
-                  onClick={checkResults}
-                  disabled={selectedIndices.length !== settings.numTargets}
-                  className={cn(
-                    "w-full py-3 rounded-lg font-medium transition-colors",
-                    selectedIndices.length === settings.numTargets
-                      ? "bg-primary hover:bg-primary/90 text-primary-foreground"
-                      : "bg-muted text-muted-foreground cursor-not-allowed"
-                  )}
-                >
-                  Check Results
-                </button>
-              </div>
-            )}
+              )}
 
-            {gameState === 'results' && (
-              <div className="space-y-4">
-                <div className={cn(
-                  "p-4 rounded-lg",
-                  selectedIndices.filter(index => targetIndices.includes(index)).length === settings.numTargets
-                    ? "bg-success/10"
-                    : "bg-destructive/10"
-                )}>
-                  <h3 className="font-semibold mb-2">Results</h3>
-                  <p className="text-3xl font-bold text-center my-4">
-                    {selectedIndices.filter(index => targetIndices.includes(index)).length}
-                    /{settings.numTargets}
-                  </p>
+              {gameState === 'results' && (
+                <div className="space-y-4">
+                  <div className={cn(
+                    "p-4 rounded-lg",
+                    selectedIndices.filter(index => targetIndices.includes(index)).length === settings.numTargets
+                      ? "bg-success/10"
+                      : "bg-destructive/10"
+                  )}>
+                    <h3 className="font-semibold mb-2">Results</h3>
+                    <p className="text-3xl font-bold text-center my-4">
+                      {selectedIndices.filter(index => targetIndices.includes(index)).length}
+                      /{settings.numTargets}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedIndices([]);
+                      setGameState('setup');
+                    }}
+                    className="w-full py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
+                  >
+                    Try Again
+                  </button>
                 </div>
-                <button
-                  onClick={() => {
-                    setSelectedIndices([]);
-                    setGameState('setup');
-                  }}
-                  className="w-full py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
-                >
-                  Try Again
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-card rounded-xl p-6 shadow-lg">
-            <h3 className="font-semibold mb-4">Instructions</h3>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>• Watch the highlighted balls carefully</p>
-              <p>• Track their movement when they start moving</p>
-              <p>• Click on the previously highlighted balls when they stop</p>
-              <p>• Try to improve your score with each attempt</p>
+              )}
             </div>
+
+            <div className="bg-card rounded-xl p-6 shadow-lg">
+              <h3 className="font-semibold mb-4">Instructions</h3>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>• Watch the highlighted balls carefully</p>
+                <p>• Track their movement when they start moving</p>
+                <p>• Click on the previously highlighted balls when they stop</p>
+                <p>• Try to improve your score with each attempt</p>
+              </div>
+            </div>
+
+            {history.length > 0 && (
+              <div className="bg-card rounded-xl p-6 shadow-lg h-auto">
+                <h3 className="text-lg font-medium mb-4">History</h3>
+                <div className="space-y-4">
+                  {history.map((item, index) => (
+                    <div
+                      key={item.timestamp}
+                      className={cn(
+                        "p-4 rounded-lg border",
+                        item.results.correct === item.results.total
+                          ? "bg-success/10 border-success/20"
+                          : "bg-destructive/10 border-destructive/20"
+                      )}
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="space-y-1">
+                          <h4 className="font-medium">
+                            Score: {item.results.correct}/{item.results.total}
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(item.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setExpandedHistoryItem(expandedHistoryItem === index ? null : index)}
+                          className="p-2 hover:bg-background/50 rounded-lg transition-colors"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={cn(
+                              "w-4 h-4 transition-transform",
+                              expandedHistoryItem === index ? "transform rotate-180" : ""
+                            )}
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <AnimatePresence>
+                        {expandedHistoryItem === index && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pt-4 border-t border-border mt-2 space-y-2">
+                              <p className="text-sm">
+                                <span className="text-muted-foreground">Total Balls:</span>{" "}
+                                {item.settings.numBalls}
+                              </p>
+                              <p className="text-sm">
+                                <span className="text-muted-foreground">Tracking Balls:</span>{" "}
+                                {item.settings.numTargets}
+                              </p>
+                              <p className="text-sm">
+                                <span className="text-muted-foreground">Ball Speed:</span>{" "}
+                                {item.settings.velocity}
+                              </p>
+                              <p className="text-sm">
+                                <span className="text-muted-foreground">Tracking Time:</span>{" "}
+                                {item.settings.trackingTime}s
+                              </p>
+                              <button
+                                onClick={() => useHistorySettings(item)}
+                                className="w-full mt-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors text-sm"
+                              >
+                                Use These Settings
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

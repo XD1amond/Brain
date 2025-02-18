@@ -66,7 +66,7 @@ export function Layout({ children }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-sm">
         <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
@@ -170,7 +170,7 @@ export function Layout({ children }) {
         </nav>
       </header>
 
-      <main className="pt-16 min-h-screen">
+      <main className="pt-16">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
