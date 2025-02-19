@@ -82,12 +82,12 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
 
         <SettingsGroup title="Stimuli" defaultExpanded={false}>
           <div className="form-group space-y-2">
-            {Object.entries(settings.stimuli).map(([key, value]) => (
+            {['position', 'audio', 'number', 'color', 'shape'].map(key => (
               <div key={key}>
                 <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
                   <input
                     type="checkbox"
-                    checked={value}
+                    checked={settings.stimuli[key]}
                     onChange={e => handleChange('stimuli', {
                       ...settings.stimuli,
                       [key]: e.target.checked
@@ -98,7 +98,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                   <span className="capitalize">{key}</span>
                 </label>
                 
-                {key === 'audio' && value && (
+                {key === 'audio' && settings.stimuli[key] && (
                   <div className="mt-2 ml-8 p-3 rounded-lg bg-muted/30 space-y-2">
                     <div className="text-sm font-medium">Audio Types:</div>
                     {Object.entries({
@@ -123,7 +123,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                   </div>
                 )}
 
-                {key === 'shape' && value && (
+                {key === 'shape' && settings.stimuli[key] && (
                   <div className="mt-2 ml-8 p-3 rounded-lg bg-muted/30">
                     <label className="form-label block mb-2 text-sm font-medium">Number of Shapes:</label>
                     <div className="flex items-center gap-2">

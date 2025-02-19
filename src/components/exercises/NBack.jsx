@@ -219,7 +219,7 @@ export default function NBack() {
   const [nbackAnalytics, setNbackAnalytics] = useLocalStorage('nback_analytics', []);
   const [settings, setSettings] = useLocalStorage('nback-settings', {
     is3D: false,
-    nBack: 2,
+    nBack: 1,
     shapeCount: 2,
     displayDuration: 3000,
     delayDuration: 500,
@@ -231,10 +231,10 @@ export default function NBack() {
     },
     stimuli: {
       position: true,
-      color: false,
       audio: true,
-      shape: false,
-      number: false
+      number: false,
+      color: false,
+      shape: false
     },
     sections: {
       nback: true,
@@ -247,10 +247,10 @@ export default function NBack() {
   const [current, setCurrent] = useState(null);
   const [score, setScore] = useState({
     position: { correct: 0, incorrect: 0 },
-    color: { correct: 0, incorrect: 0 },
     audio: { correct: 0, incorrect: 0 },
-    shape: { correct: 0, incorrect: 0 },
-    number: { correct: 0, incorrect: 0 }
+    number: { correct: 0, incorrect: 0 },
+    color: { correct: 0, incorrect: 0 },
+    shape: { correct: 0, incorrect: 0 }
   });
 
   // Track which controls are toggled for the current turn
@@ -482,16 +482,16 @@ export default function NBack() {
       case 'a':
         if (settings.stimuli.position) checkMatch('position');
         break;
-      case 's':
-        if (settings.stimuli.color) checkMatch('color');
-        break;
-      case 'd':
+      case 'l':
         if (settings.stimuli.audio) checkMatch('audio');
         break;
-      case 'f':
+      case 'd':
         if (settings.stimuli.number) checkMatch('number');
         break;
-      case 'g':
+      case 'f':
+        if (settings.stimuli.color) checkMatch('color');
+        break;
+      case 'j':
         if (settings.stimuli.shape) checkMatch('shape');
         break;
       default:
@@ -568,10 +568,10 @@ export default function NBack() {
 Watch for patterns that match what appeared N positions back in the sequence. Press the corresponding key when you detect a match:
 
 • Position (A Key): Same location as N steps ago
-• Color (S Key): Same color as N steps ago
-• Audio (D Key): Same sound as N steps ago
-• Number (F Key): Same number as N steps ago
-• Shape (G Key): Same shape as N steps ago
+• Audio (L Key): Same sound as N steps ago
+• Number (D Key): Same number as N steps ago
+• Color (F Key): Same color as N steps ago
+• Shape (J Key): Same shape as N steps ago
 
 Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, press the matching key." />
                 {settings.is3D ? (
@@ -604,8 +604,8 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
               </div>
             </div>
 
-            <div className="flex justify-center gap-4">
-              {Object.entries(settings.stimuli).map(([type, enabled]) => enabled && (
+            <div className="flex justify-center gap-4 pb-6">
+              {['position', 'audio', 'number', 'color', 'shape'].map(type => settings.stimuli[type] && (
                 <button
                   key={type}
                   onClick={() => checkMatch(type)}
@@ -620,10 +620,10 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
                   <span className="capitalize">{type}</span>
                   <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
                     {type === 'position' ? 'A' :
-                     type === 'color' ? 'S' :
-                     type === 'audio' ? 'D' :
-                     type === 'number' ? 'F' :
-                     'G'}
+                     type === 'audio' ? 'L' :
+                     type === 'number' ? 'D' :
+                     type === 'color' ? 'F' :
+                     'J'}
                   </kbd>
                 </button>
               ))}
