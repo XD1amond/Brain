@@ -41,7 +41,6 @@ class DistinctionQuestion {
             // Add bidirectional neighbor relationship
             this.neighbors.get(source).add(target);
             this.neighbors.get(target).add(source);
-
             if (Math.random() > 0.5) {
                 // Same relationship
                 questionPremises.push(createSamePremise(source, target));
@@ -58,34 +57,36 @@ class DistinctionQuestion {
             }
         }
 
-        // Find two distant items for conclusion
+        // Get words for conclusion (might be new words if all existing pairs were used)
         const [startWord, endWord] = this.findDistantPair(items);
         
-        // Randomly decide if conclusion should state actual relationship
-        const stateActualRelationship = Math.random() > 0.5;
+        // For new words, randomly assign them to buckets
+        if (!this.bucketMap.has(startWord)) {
+            this.bucketMap.set(startWord, 0);
+        }
+        if (!this.bucketMap.has(endWord)) {
+            this.bucketMap.set(endWord, Math.random() > 0.5 ? 0 : 1);
+        }
         
-        // Generate conclusion
+        // Randomly choose between same and opposite
+        const useSame = Math.random() > 0.5;
+        const conclusion = useSame
+            ? createSamePremise(startWord, endWord)
+            : createOppositePremise(startWord, endWord);
+        
+        // Determine if the conclusion is valid based on bucket placement
         const startBucket = this.bucketMap.get(startWord);
         const endBucket = this.bucketMap.get(endWord);
-        const areSame = startBucket === endBucket;
-
-        let conclusion;
-        if (stateActualRelationship) {
-            conclusion = areSame
-                ? createSamePremise(startWord, endWord)
-                : createOppositePremise(startWord, endWord);
-        } else {
-            conclusion = areSame
-                ? createOppositePremise(startWord, endWord)
-                : createSamePremise(startWord, endWord);
-        }
+        const isValid = useSame
+            ? startBucket === endBucket
+            : startBucket !== endBucket;
 
         return {
             type: 'distinction',
             category: 'Distinction',
             premises: questionPremises,
             conclusion,
-            isValid: stateActualRelationship,
+            isValid,
             buckets: this.buckets.map(bucket => Array.from(bucket)),
             relationships: Object.fromEntries(
                 Array.from(this.bucketMap).map(([k, v]) => [k, v])
@@ -107,18 +108,28 @@ class DistinctionQuestion {
     }
 
     findDistantPair(items) {
-        // Try to find items in different buckets
-        for (let attempts = 0; attempts < 10; attempts++) {
+        // Get all pairs of words that were used in premises
+        const usedPairs = new Set();
+        for (const [source, neighbors] of this.neighbors.entries()) {
+            for (const target of neighbors) {
+                usedPairs.add(source + ',' + target);
+                usedPairs.add(target + ',' + source);
+            }
+        }
+
+        // Try to find a pair that wasn't used in premises
+        for (let attempts = 0; attempts < 20; attempts++) {
             const a = items[Math.floor(Math.random() * items.length)];
             const b = items[Math.floor(Math.random() * items.length)];
             
-            if (a !== b && this.bucketMap.get(a) !== this.bucketMap.get(b)) {
+            if (a !== b && !usedPairs.has(a + ',' + b)) {
                 return [a, b];
             }
         }
 
-        // Fallback to first and last items
-        return [items[0], items[items.length - 1]];
+        // If we can't find an unused pair, generate new words
+        const newItems = generateWords(2, { nouns: true });
+        return newItems;
     }
 }
 
