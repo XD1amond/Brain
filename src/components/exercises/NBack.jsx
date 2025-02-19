@@ -220,6 +220,14 @@ export default function NBack() {
   const [settings, setSettings] = useLocalStorage('nback-settings', {
     is3D: false,
     nBack: 1,
+    useIndividualNBacks: false,
+    individualNBacks: {
+      position: 0,
+      audio: 0,
+      number: 0,
+      color: 0,
+      shape: 0
+    },
     shapeCount: 2,
     displayDuration: 3000,
     delayDuration: 500,
@@ -399,29 +407,39 @@ export default function NBack() {
     return () => clearTimeout(timeoutId);
   }, [isPlaying, generateStimulus, playSound, settings.displayDuration]);
 
+  const getNBackForType = useCallback((type) => {
+    if (!settings.useIndividualNBacks || !settings.individualNBacks[type] || settings.individualNBacks[type] === 0) {
+      return settings.nBack;
+    }
+    return settings.individualNBacks[type];
+  }, [settings.useIndividualNBacks, settings.individualNBacks, settings.nBack]);
+
   const checkMatch = useCallback((type) => {
-    if (!current || sequence.length <= settings.nBack) return;
+    const nBackLevel = getNBackForType(type);
+    if (!current || sequence.length <= nBackLevel) return;
     
     // Toggle the control state
     setToggledControls(prev => ({
       ...prev,
       [type]: !prev[type]
     }));
-  }, [current, sequence.length, settings.nBack]);
+  }, [current, sequence.length, getNBackForType]);
 
   // Check matches and update scores when a new stimulus appears
   useEffect(() => {
-    if (!current || sequence.length <= settings.nBack + 1) return;
-    
-    // Get the previous stimulus and its target
-    const prevStimulus = sequence[sequence.length - 2];
-    const prevTarget = sequence[sequence.length - settings.nBack - 2];
-    
-    if (!prevStimulus || !prevTarget) return;
+    if (!current || sequence.length <= Math.max(...Object.values(settings.individualNBacks), settings.nBack) + 1) return;
     
     // Check each stimulus type for matches and update scores
     Object.entries(settings.stimuli).forEach(([type, enabled]) => {
       if (!enabled) return;
+
+      const nBackLevel = getNBackForType(type);
+      
+      // Get the previous stimulus and its target based on individual n-back level
+      const prevStimulus = sequence[sequence.length - 2];
+      const prevTarget = sequence[sequence.length - nBackLevel - 2];
+      
+      if (!prevStimulus || !prevTarget) return;
       
       let isMatch = false;
       switch (type) {
@@ -473,7 +491,7 @@ export default function NBack() {
       shape: false,
       number: false
     });
-  }, [current, sequence, settings.nBack, settings.is3D, settings.audioTypes]);
+  }, [current, sequence, settings.nBack, settings.is3D, settings.audioTypes, settings.individualNBacks, settings.useIndividualNBacks, getNBackForType]);
 
   const handleKeyPress = useCallback((e) => {
     if (!isPlaying) return;
@@ -671,6 +689,14 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
                   duration: (Date.now() - startTime) / 1000 / 60, // Convert ms to minutes
                   metrics: {
                     nBackLevel: settings.nBack,
+                    useIndividualNBacks: settings.useIndividualNBacks,
+                    individualNBacks: settings.useIndividualNBacks ?
+                      Object.fromEntries(
+                        activeStimuli.map(type => [
+                          type,
+                          settings.individualNBacks[type] || settings.nBack
+                        ])
+                      ) : null,
                     percentageCorrect,
                     activeStimuli,
                     stimuliCount: activeStimuli.length,

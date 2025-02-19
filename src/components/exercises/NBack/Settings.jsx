@@ -32,6 +32,16 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
     }));
   };
 
+  const handleIndividualNBackChange = (type, value) => {
+    onSettingsChange(prev => ({
+      ...prev,
+      individualNBacks: {
+        ...prev.individualNBacks,
+        [type]: value
+      }
+    }));
+  };
+
   return (
     <div className="space-y-6 bg-card rounded-xl p-6 shadow-lg">
       <div className="flex items-center justify-between">
@@ -53,6 +63,43 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                 disabled={isPlaying}
               />
             </div>
+
+            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={settings.useIndividualNBacks}
+                onChange={e => handleChange('useIndividualNBacks', e.target.checked)}
+                className="form-checkbox"
+                disabled={isPlaying}
+              />
+              <span>Individual N-Back Levels</span>
+            </label>
+
+            {settings.useIndividualNBacks && (
+              <div className="space-y-3 ml-6">
+                {Object.entries(settings.stimuli)
+                  .filter(([_, enabled]) => enabled)
+                  .map(([type]) => (
+                    <div key={type} className="form-group">
+                      <label className="form-label flex items-center justify-between">
+                        <span className="capitalize">{type}</span>
+                        <input
+                          type="number"
+                          value={settings.individualNBacks?.[type] ?? 0}
+                          onChange={e => handleIndividualNBackChange(type, Math.max(0, parseInt(e.target.value)))}
+                          min="0"
+                          max="5"
+                          className="form-input w-20"
+                          disabled={isPlaying}
+                        />
+                      </label>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {settings.individualNBacks?.[type] === 0 && "Using main N-Back level"}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
 
             <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
               <input
