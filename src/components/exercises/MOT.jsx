@@ -125,7 +125,86 @@ function Ball({ position, isHighlighted, isSelectable, onClick, velocity, gameSt
 }
 
 
-function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selectedIndices, showingResults }) {
+function Crosshair({ settings }) {
+  if (!settings.crosshair?.enabled) return null;
+
+  const crosshair = settings.crosshair || defaultSettings.crosshair;
+  const color = new THREE.Color(
+    (crosshair?.color?.r ?? 255) / 255,
+    (crosshair?.color?.g ?? 255) / 255,
+    (crosshair?.color?.b ?? 255) / 255
+  );
+
+  const material = new THREE.LineBasicMaterial({
+    color,
+    transparent: true,
+    opacity: crosshair?.color?.a ?? 1,
+    depthTest: false
+  });
+
+  const renderCenterDot = () => {
+    if (!crosshair?.centerDot?.enabled) return null;
+    const geometry = new THREE.CircleGeometry((crosshair?.centerDot?.thickness ?? 2) / 100, 32);
+    return (
+      <mesh renderOrder={999} material={material}>
+        <primitive object={geometry} />
+      </mesh>
+    );
+  };
+
+  const renderLines = (lineSettings, isInner) => {
+    if (!lineSettings?.enabled) return null;
+
+    const offset = (lineSettings?.offset ?? (isInner ? 3 : 10)) / 50;
+    const length = (lineSettings?.length ?? (isInner ? 6 : 2)) / 50;
+    const thickness = (lineSettings?.thickness ?? 2) / 200;
+
+    const vertices = [];
+    const rotation = ((crosshair?.rotation ?? 0) * Math.PI) / 180;
+
+    // Helper function to rotate a point
+    const rotatePoint = (x, y) => [
+      x * Math.cos(rotation) - y * Math.sin(rotation),
+      x * Math.sin(rotation) + y * Math.cos(rotation)
+    ];
+
+    // Create lines in all four directions
+    [-1, 1].forEach(dirX => {
+      [-1, 1].forEach(dirY => {
+        const startX = dirX * offset;
+        const startY = dirY * offset;
+        const endX = dirX * (offset + length);
+        const endY = dirY * (offset + length);
+
+        // Rotate the points
+        const [rotStartX, rotStartY] = rotatePoint(startX, startY);
+        const [rotEndX, rotEndY] = rotatePoint(endX, endY);
+
+        vertices.push(
+          rotStartX, rotStartY, 0,
+          rotEndX, rotEndY, 0
+        );
+      });
+    });
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+
+    return (
+      <lineSegments renderOrder={999} geometry={geometry} material={material} />
+    );
+  };
+
+  return (
+    <group position={[0, 0, 0]}>
+      {renderCenterDot()}
+      {renderLines(crosshair?.innerLines, true)}
+      {renderLines(crosshair?.outerLines, false)}
+    </group>
+  );
+}
+
+function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selectedIndices, showingResults, settings }) {
   return (
     <>
       <Environment preset="night" />
@@ -134,6 +213,7 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selecte
         position={[0, 0, 12]}
         fov={60}
       />
+      <Crosshair settings={settings} />
       <ambientLight intensity={0.2} />
       <pointLight position={[0, 0, 10]} intensity={0.5} />
       <Physics
@@ -175,14 +255,55 @@ export default function MOT() {
   const [expandedHistoryItem, setExpandedHistoryItem] = useState(null);
   const [startTime, setStartTime] = useState(null);
 
-  const [settings, setSettings] = useLocalStorage('mot-settings', {
+  const defaultSettings = {
     numBalls: 8,
     numTargets: 3,
     rememberTime: 3,
     trackingTime: 10,
     selectionTime: 5,
     velocity: 7,
-  });
+    crosshair: {
+      enabled: true,
+      color: {
+        r: 255,
+        g: 0,
+        b: 0,
+        a: 1
+      },
+      innerLines: {
+        enabled: false,
+        opacity: 1,
+        length: 6,
+        thickness: 2,
+        offset: 3
+      },
+      outerLines: {
+        enabled: false,
+        opacity: 1,
+        length: 2,
+        thickness: 2,
+        offset: 10
+      },
+      centerDot: {
+        enabled: true,
+        opacity: 1,
+        thickness: 5
+      },
+      rotation: 0
+    }
+  };
+
+  const [settings, setSettings] = useLocalStorage('mot-settings', defaultSettings);
+
+  // Ensure crosshair settings exist (for users with existing settings)
+  useEffect(() => {
+    if (!settings.crosshair) {
+      setSettings(prev => ({
+        ...prev,
+        crosshair: defaultSettings.crosshair
+      }));
+    }
+  }, []);
   const [gameState, setGameState] = useState('setup');
   const [showingResults, setShowingResults] = useState(false);
   const [balls, setBalls] = useState(() => {
@@ -369,6 +490,7 @@ The more accurately you identify the original balls, the higher your score!" />
                 velocity={gameState === 'tracking' ? settings.velocity : 0}
                 selectedIndices={selectedIndices}
                 showingResults={showingResults}
+                settings={settings}
               />
             </Canvas>
           </div>

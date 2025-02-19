@@ -108,15 +108,99 @@ function Ball({ position, isHighlighted, isSelectable, onClick, velocity, gameSt
   );
 }
 
-function Scene({ balls, targetIndices, gameState, onBallClick, velocity }) {
+function Crosshair({ settings }) {
+  const defaultCrosshair = {
+    enabled: true,
+    style: 'dot',
+    size: 4,
+    color: 'white',
+    opacity: 1,
+    thickness: 2,
+    gap: 4
+  };
+
+  // Use default settings if crosshair settings are missing
+  const crosshair = settings.crosshair || defaultCrosshair;
+  if (!crosshair.enabled) return null;
+
+  const color = new THREE.Color(crosshair.color?.toLowerCase() || defaultCrosshair.color);
+  const material = new THREE.LineBasicMaterial({
+    color,
+    transparent: true,
+    opacity: crosshair.opacity ?? defaultCrosshair.opacity,
+    depthTest: false
+  });
+
+  const renderDot = () => {
+    const size = crosshair.size ?? defaultCrosshair.size;
+    const geometry = new THREE.CircleGeometry(size / 100, 32);
+    return <mesh renderOrder={999} material={material}><primitive object={geometry} /></mesh>;
+  };
+
+  const renderCross = () => {
+    const size = (crosshair.size ?? defaultCrosshair.size) / 50;
+    const thickness = (crosshair.thickness ?? defaultCrosshair.thickness) / 200;
+    const geometry = new THREE.BufferGeometry();
+    const vertices = new Float32Array([
+      -size, 0, 0,  // horizontal line
+      size, 0, 0,
+      0, -size, 0,  // vertical line
+      0, size, 0
+    ]);
+    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    return <line renderOrder={999} geometry={geometry} material={material} />;
+  };
+
+  const renderCircle = () => {
+    const size = (crosshair.size ?? defaultCrosshair.size) / 50;
+    const thickness = (crosshair.thickness ?? defaultCrosshair.thickness) / 100;
+    const circleGeometry = new THREE.RingGeometry(
+      size - thickness,
+      size,
+      32
+    );
+    return <mesh renderOrder={999} material={material}><primitive object={circleGeometry} /></mesh>;
+  };
+
+  const renderCrosshair = () => {
+    const size = (crosshair.size ?? defaultCrosshair.size) / 50;
+    const gap = (crosshair.gap ?? defaultCrosshair.gap) / 100;
+    const geometry = new THREE.BufferGeometry();
+    const vertices = new Float32Array([
+      -size, 0, 0,  // left
+      -gap, 0, 0,
+      gap, 0, 0,    // right
+      size, 0, 0,
+      0, -size, 0,  // bottom
+      0, -gap, 0,
+      0, gap, 0,    // top
+      0, size, 0
+    ]);
+    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    return <line renderOrder={999} geometry={geometry} material={material} />;
+  };
+
+  const style = crosshair.style ?? defaultCrosshair.style;
+  return (
+    <group position={[0, 0, 0]}>
+      {style === 'dot' && renderDot()}
+      {style === 'cross' && renderCross()}
+      {style === 'circle' && renderCircle()}
+      {style === 'crosshair' && renderCrosshair()}
+    </group>
+  );
+}
+
+function Scene({ balls, targetIndices, gameState, onBallClick, velocity, settings }) {
   return (
     <>
       <Environment preset="city" />
-      <PerspectiveCamera 
-        makeDefault 
+      <PerspectiveCamera
+        makeDefault
         position={[0, 0, 15]}
         fov={50}
       />
+      <Crosshair settings={settings} />
       <Physics
         gravity={[0, 0, 0]}
         defaultContactMaterial={{
@@ -166,13 +250,34 @@ function SettingSlider({ label, value, onChange, min, max, step = 1 }) {
 }
 
 export default function MOT() {
-  const [settings, setSettings] = useLocalStorage('mot-settings', {
+  const defaultSettings = {
     numBalls: 8,
     numTargets: 3,
     rememberTime: 3,
     trackingTime: 10,
     velocity: 5,
-  });
+    crosshair: {
+      enabled: true,
+      style: 'dot',
+      size: 4,
+      color: 'white',
+      opacity: 1,
+      thickness: 2,
+      gap: 4
+    }
+  };
+
+  const [settings, setSettings] = useLocalStorage('mot-settings', defaultSettings);
+
+  // Ensure crosshair settings exist (for users with existing settings)
+  useEffect(() => {
+    if (!settings.crosshair) {
+      setSettings(prev => ({
+        ...prev,
+        crosshair: defaultSettings.crosshair
+      }));
+    }
+  }, []);
   const [history, setHistory] = useLocalStorage('mot_history', []);
   const [expandedHistoryItem, setExpandedHistoryItem] = useState(null);
   const [gameState, setGameState] = useState('setup');
@@ -338,6 +443,7 @@ export default function MOT() {
                     gameState={gameState}
                     onBallClick={handleBallClick}
                     velocity={settings.velocity}
+                    settings={settings}
                   />
                 </Canvas>
               </div>
