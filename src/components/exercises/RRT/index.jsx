@@ -76,7 +76,13 @@ export default function RRT() {
     // Misc Settings
     enableCarouselMode: false,
     randomizeButtons: false,
-    buttonNegation: false
+    buttonNegation: false,
+
+    // Keybind Settings
+    trueKey: '1',
+    falseKey: '2',
+    playPauseKey: ' ',
+    newQuestionKey: '3'
   });
 
   // Validate settings
@@ -240,6 +246,44 @@ useEffect(() => {
     generateNewQuestion();
   }
 }, [canStart, settings, generateNewQuestion]);
+
+// Keyboard controls
+useEffect(() => {
+  const handleKeyDown = (e) => {
+    if (!currentQuestion || isTransitioning) return;
+    
+    const key = e.key;
+    
+    // Handle play/pause
+    if ((key === settings.playPauseKey) || (settings.playPauseKey === 'Space' && key === ' ')) {
+      e.preventDefault();
+      togglePlay();
+      return;
+    }
+
+    // Handle new question
+    if ((key === settings.newQuestionKey) || (settings.newQuestionKey === 'Space' && key === ' ')) {
+      e.preventDefault();
+      generateNewQuestion();
+      return;
+    }
+    
+    // Only handle answer keys if playing
+    if (!isPlaying) return;
+    
+    // Handle true/false answers
+    if ((key === settings.trueKey) || (settings.trueKey === 'Space' && key === ' ')) {
+      e.preventDefault();
+      handleAnswer(true);
+    } else if ((key === settings.falseKey) || (settings.falseKey === 'Space' && key === ' ')) {
+      e.preventDefault();
+      handleAnswer(false);
+    }
+  };
+
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [currentQuestion, isPlaying, isTransitioning, settings.trueKey, settings.falseKey, settings.pauseKey]);
 
 // Question timer
 useEffect(() => {

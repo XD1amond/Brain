@@ -45,7 +45,11 @@ export const compressedSettings = {
   direction3DTimer: 'd3t',
   enableCarouselMode: 'cm',
   randomizeButtons: 'rb',
-  buttonNegation: 'bn'
+  buttonNegation: 'bn',
+  trueKey: 'tk',
+  falseKey: 'fk',
+  playPauseKey: 'ppk',
+  newQuestionKey: 'nqk'
 };
 
 export const generateShortId = (length = 9) => {

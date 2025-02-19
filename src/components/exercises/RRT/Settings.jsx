@@ -4,6 +4,47 @@ import { createPreset, validatePreset, compressSettings, generateShortId } from 
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { toast } from 'sonner';
 
+function KeybindInput({ label, value, onChange, defaultValue }) {
+  const [isBinding, setIsBinding] = useState(false);
+  const displayValue = value === ' ' ? 'Space' : value || defaultValue;
+
+  const handleKeyDown = (e) => {
+    e.preventDefault();
+    if (e.key === 'Escape') {
+      setIsBinding(false);
+      return;
+    }
+    
+    let newValue = e.key;
+    if (e.key === ' ') {
+      newValue = 'Space';
+    }
+    onChange(newValue);
+    setIsBinding(false);
+  };
+
+  return (
+    <div className="form-group">
+      <label className="form-label">{label}</label>
+      <div className="relative">
+        <input
+          type="text"
+          value={displayValue}
+          onFocus={() => setIsBinding(true)}
+          onKeyDown={isBinding ? handleKeyDown : undefined}
+          readOnly
+          className="form-input w-20"
+        />
+        {isBinding && (
+          <div className="absolute left-0 -bottom-6 text-sm text-muted-foreground whitespace-nowrap">
+            Press any key to bind it, press Esc to exit
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SettingsGroup({ title, children, defaultExpanded = false }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -721,6 +762,35 @@ export function Settings({
                 Set to 0 to use general timer
               </p>
             </div>
+          </div>
+        </SettingsGroup>
+
+        <SettingsGroup title="Keybinds" defaultExpanded={false}>
+          <div className="grid gap-4">
+            <KeybindInput
+              label="True"
+              value={settings.trueKey}
+              onChange={value => handleChange('trueKey', value)}
+              defaultValue="1"
+            />
+            <KeybindInput
+              label="False"
+              value={settings.falseKey}
+              onChange={value => handleChange('falseKey', value)}
+              defaultValue="2"
+            />
+            <KeybindInput
+              label="New Question"
+              value={settings.newQuestionKey}
+              onChange={value => handleChange('newQuestionKey', value)}
+              defaultValue="3"
+            />
+            <KeybindInput
+              label="Play/Pause"
+              value={settings.playPauseKey}
+              onChange={value => handleChange('playPauseKey', value)}
+              defaultValue="Space"
+            />
           </div>
         </SettingsGroup>
 
