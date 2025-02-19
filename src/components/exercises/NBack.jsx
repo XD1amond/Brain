@@ -248,7 +248,14 @@ export default function NBack() {
       nback: true,
       stimuli: true,
       timing: false
-    }
+    },
+    // Keybind settings
+    positionKey: 'a',
+    audioKey: 'l',
+    numberKey: 'd',
+    colorKey: 'f',
+    shapeKey: 'j',
+    startStopKey: 'Space'
   });
 
   const [sequence, setSequence] = useState([]);
@@ -494,26 +501,107 @@ export default function NBack() {
   }, [current, sequence, settings.nBack, settings.is3D, settings.audioTypes, settings.individualNBacks, settings.useIndividualNBacks, getNBackForType]);
 
   const handleKeyPress = useCallback((e) => {
+    const key = e.key.toLowerCase();
+    
+    // Get all keybinds
+    const keybinds = {
+      startStop: settings.startStopKey?.toLowerCase() || 'space',
+      position: settings.positionKey?.toLowerCase() || 'a',
+      audio: settings.audioKey?.toLowerCase() || 'l',
+      number: settings.numberKey?.toLowerCase() || 'd',
+      color: settings.colorKey?.toLowerCase() || 'f',
+      shape: settings.shapeKey?.toLowerCase() || 'j'
+    };
+
+    // Check if the pressed key matches any of our keybinds
+    const isKeybind = Object.values(keybinds).includes(key) ||
+      (key === ' ' && keybinds.startStop === 'space');
+
+    // Prevent default behavior if it's one of our keybinds
+    if (isKeybind) {
+      e.preventDefault();
+    }
+    
+    // Handle start/stop key
+    if (key === ' ' && keybinds.startStop === 'space' ||
+        key === keybinds.startStop) {
+      if (isPlaying) {
+        setIsPlaying(false);
+        
+        // Calculate overall score metrics across all enabled stimuli
+        const enabledScores = Object.entries(score)
+          .filter(([type]) => settings.stimuli[type]);
+        
+        const totals = enabledScores.reduce((acc, [_, stats]) => ({
+          correct: acc.correct + stats.correct,
+          incorrect: acc.incorrect + stats.incorrect
+        }), { correct: 0, incorrect: 0 });
+
+        const totalAttempts = totals.correct + totals.incorrect;
+        const percentageCorrect = totalAttempts > 0
+          ? (totals.correct / totalAttempts) * 100
+          : 0;
+
+        // Get active stimuli types
+        const activeStimuli = Object.entries(settings.stimuli)
+          .filter(([_, enabled]) => enabled)
+          .map(([type]) => type);
+
+        // Get active audio types
+        const activeAudioTypes = Object.entries(settings.audioTypes)
+          .filter(([_, enabled]) => enabled)
+          .map(([type]) => type);
+
+        // Record analytics to local storage
+        const session = {
+          exercise: 'nback',
+          timestamp: Date.now(),
+          date: getTodayDate(),
+          duration: (Date.now() - startTime) / 1000 / 60,
+          metrics: {
+            nBackLevel: settings.nBack,
+            useIndividualNBacks: settings.useIndividualNBacks,
+            individualNBacks: settings.useIndividualNBacks ?
+              Object.fromEntries(
+                activeStimuli.map(type => [
+                  type,
+                  settings.individualNBacks[type] || settings.nBack
+                ])
+              ) : null,
+            percentageCorrect,
+            activeStimuli,
+            stimuliCount: activeStimuli.length,
+            audioTypes: activeAudioTypes,
+            audioTypesCount: activeAudioTypes.length
+          }
+        };
+        setNbackAnalytics(prev => [...prev, session]);
+
+        // Reset game state
+        setSequence([]);
+        setCurrent(null);
+        setStartTime(null);
+      } else {
+        setIsPlaying(true);
+        setStartTime(Date.now());
+      }
+      return;
+    }
+
+    // Only handle stimulus keys if the game is playing
     if (!isPlaying) return;
     
-    switch (e.key) {
-      case 'a':
-        if (settings.stimuli.position) checkMatch('position');
-        break;
-      case 'l':
-        if (settings.stimuli.audio) checkMatch('audio');
-        break;
-      case 'd':
-        if (settings.stimuli.number) checkMatch('number');
-        break;
-      case 'f':
-        if (settings.stimuli.color) checkMatch('color');
-        break;
-      case 'j':
-        if (settings.stimuli.shape) checkMatch('shape');
-        break;
-      default:
-        break;
+    // Handle stimulus keys
+    if (key === keybinds.position && settings.stimuli.position) {
+      checkMatch('position');
+    } else if (key === keybinds.audio && settings.stimuli.audio) {
+      checkMatch('audio');
+    } else if (key === keybinds.number && settings.stimuli.number) {
+      checkMatch('number');
+    } else if (key === keybinds.color && settings.stimuli.color) {
+      checkMatch('color');
+    } else if (key === keybinds.shape && settings.stimuli.shape) {
+      checkMatch('shape');
     }
   }, [isPlaying, settings.stimuli, checkMatch]);
 
@@ -581,17 +669,19 @@ export default function NBack() {
           <div className="flex flex-col gap-8">
             <div className="relative">
               <div className="w-full h-[500px]">
-                <HelpButton text="N-Back Memory Training:
+                <HelpButton text={`N-Back Memory Training:
 
 Watch for patterns that match what appeared N positions back in the sequence. Press the corresponding key when you detect a match:
 
-• Position (A Key): Same location as N steps ago
-• Audio (L Key): Same sound as N steps ago
-• Number (D Key): Same number as N steps ago
-• Color (F Key): Same color as N steps ago
-• Shape (J Key): Same shape as N steps ago
+• Position (${settings.positionKey?.toUpperCase() || 'A'} Key): Same location as N steps ago
+• Audio (${settings.audioKey?.toUpperCase() || 'L'} Key): Same sound as N steps ago
+• Number (${settings.numberKey?.toUpperCase() || 'D'} Key): Same number as N steps ago
+• Color (${settings.colorKey?.toUpperCase() || 'F'} Key): Same color as N steps ago
+• Shape (${settings.shapeKey?.toUpperCase() || 'J'} Key): Same shape as N steps ago
 
-Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, press the matching key." />
+Press ${settings.startStopKey === 'Space' ? 'SPACE' : settings.startStopKey?.toUpperCase() || 'SPACE'} to start/stop the game.
+
+Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, press the matching key.`} />
                 {settings.is3D ? (
                   <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
                     <ambientLight intensity={0.5} />
@@ -654,66 +744,9 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
           <Settings settings={settings} onSettingsChange={setSettings} isPlaying={isPlaying} />
           <button
             onClick={() => {
-              if (isPlaying) {
-                setIsPlaying(false);
-                
-                // Calculate overall score metrics across all enabled stimuli
-                const enabledScores = Object.entries(score)
-                  .filter(([type]) => settings.stimuli[type]);
-                
-                const totals = enabledScores.reduce((acc, [_, stats]) => ({
-                  correct: acc.correct + stats.correct,
-                  incorrect: acc.incorrect + stats.incorrect
-                }), { correct: 0, incorrect: 0 });
-
-                const totalAttempts = totals.correct + totals.incorrect;
-                const percentageCorrect = totalAttempts > 0
-                  ? (totals.correct / totalAttempts) * 100
-                  : 0;
-
-                // Get active stimuli types
-                const activeStimuli = Object.entries(settings.stimuli)
-                  .filter(([_, enabled]) => enabled)
-                  .map(([type]) => type);
-
-                // Get active audio types
-                const activeAudioTypes = Object.entries(settings.audioTypes)
-                  .filter(([_, enabled]) => enabled)
-                  .map(([type]) => type);
-
-                // Record analytics to local storage
-                const session = {
-                  exercise: 'nback',
-                  timestamp: Date.now(),
-                  date: getTodayDate(),
-                  duration: (Date.now() - startTime) / 1000 / 60, // Convert ms to minutes
-                  metrics: {
-                    nBackLevel: settings.nBack,
-                    useIndividualNBacks: settings.useIndividualNBacks,
-                    individualNBacks: settings.useIndividualNBacks ?
-                      Object.fromEntries(
-                        activeStimuli.map(type => [
-                          type,
-                          settings.individualNBacks[type] || settings.nBack
-                        ])
-                      ) : null,
-                    percentageCorrect,
-                    activeStimuli,
-                    stimuliCount: activeStimuli.length,
-                    audioTypes: activeAudioTypes,
-                    audioTypesCount: activeAudioTypes.length
-                  }
-                };
-                setNbackAnalytics(prev => [...prev, session]);
-
-                // Reset game state
-                setSequence([]);
-                setCurrent(null);
-                setStartTime(null);
-              } else {
-                setIsPlaying(true);
-                setStartTime(Date.now());
-              }
+              // Simulate pressing the start/stop key
+              const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
+              handleKeyPress({ key: startStopKey === 'space' ? ' ' : startStopKey });
             }}
             className={cn(
               "w-full py-2 px-4 rounded-md font-medium transition-colors mt-6",

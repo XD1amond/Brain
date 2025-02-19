@@ -1,6 +1,49 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
+function KeybindInput({ label, value, onChange, defaultValue }) {
+  const [isBinding, setIsBinding] = useState(false);
+  const displayValue = value === ' ' || value?.toLowerCase() === 'space'
+    ? 'Space'
+    : value?.toUpperCase() || defaultValue;
+
+  const handleKeyDown = (e) => {
+    e.preventDefault();
+    if (e.key === 'Escape') {
+      setIsBinding(false);
+      return;
+    }
+    
+    let newValue = e.key;
+    if (e.key === ' ') {
+      newValue = 'Space';
+    }
+    onChange(newValue);
+    setIsBinding(false);
+  };
+
+  return (
+    <div className="form-group">
+      <label className="form-label">{label}</label>
+      <div className="relative">
+        <input
+          type="text"
+          value={displayValue}
+          onFocus={() => setIsBinding(true)}
+          onKeyDown={isBinding ? handleKeyDown : undefined}
+          readOnly
+          className="form-input w-20"
+        />
+        {isBinding && (
+          <div className="absolute left-0 -bottom-6 text-sm text-muted-foreground whitespace-nowrap">
+            Press any key to bind it, press Esc to exit
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SettingsGroup({ title, children, defaultExpanded = false }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -227,6 +270,47 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                 <span className="text-sm text-muted-foreground">milliseconds</span>
               </div>
             </div>
+          </div>
+        </SettingsGroup>
+
+        <SettingsGroup title="Keybinds" defaultExpanded={false}>
+          <div className="grid gap-4">
+            <KeybindInput
+              label="Position"
+              value={settings.positionKey}
+              onChange={value => handleChange('positionKey', value)}
+              defaultValue="A"
+            />
+            <KeybindInput
+              label="Audio"
+              value={settings.audioKey}
+              onChange={value => handleChange('audioKey', value)}
+              defaultValue="L"
+            />
+            <KeybindInput
+              label="Number"
+              value={settings.numberKey}
+              onChange={value => handleChange('numberKey', value)}
+              defaultValue="D"
+            />
+            <KeybindInput
+              label="Color"
+              value={settings.colorKey}
+              onChange={value => handleChange('colorKey', value)}
+              defaultValue="F"
+            />
+            <KeybindInput
+              label="Shape"
+              value={settings.shapeKey}
+              onChange={value => handleChange('shapeKey', value)}
+              defaultValue="J"
+            />
+            <KeybindInput
+              label="Start/Stop"
+              value={settings.startStopKey}
+              onChange={value => handleChange('startStopKey', value)}
+              defaultValue="Space"
+            />
           </div>
         </SettingsGroup>
       </div>
