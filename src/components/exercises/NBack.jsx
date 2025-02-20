@@ -743,10 +743,14 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
           <h2 className="text-2xl font-bold mb-6">{getNBackType(settings.stimuli)} N-Back</h2>
           <Settings settings={settings} onSettingsChange={setSettings} isPlaying={isPlaying} />
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
               // Simulate pressing the start/stop key
               const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
-              handleKeyPress({ key: startStopKey === 'space' ? ' ' : startStopKey });
+              handleKeyPress({
+                key: startStopKey === 'space' ? ' ' : startStopKey,
+                preventDefault: () => {} // Add mock preventDefault
+              });
             }}
             className={cn(
               "w-full py-2 px-4 rounded-md font-medium transition-colors mt-6",
