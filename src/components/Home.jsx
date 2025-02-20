@@ -111,7 +111,7 @@ export default function Home() {
                 <Link
                   to={exercise.path}
                   className={cn(
-                    "block p-8 rounded-2xl overflow-hidden",
+                    "block p-8 rounded-2xl overflow-hidden shadow-none",
                     "bg-gradient-to-br",
                     exercise.color,
                     "hover:shadow-xl transition-all duration-300",
@@ -128,7 +128,7 @@ export default function Home() {
                     </div>
                     <p className="text-white/90">{exercise.details}</p>
                   </div>
-                  <div className="absolute inset-0 bg-black/10" />
+                  <div className="absolute inset-0 bg-black/5 rounded-2xl" />
                 </Link>
               </motion.div>
             ))}
