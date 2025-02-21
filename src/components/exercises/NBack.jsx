@@ -176,41 +176,48 @@ function Grid3D({ position, color, isActive, number, shape }) {
   );
 }
 
-function Grid2D({ position, color, number, shape }) {
+function Grid2D({ position, color, number, shape, forced }) {
   return (
-    <div className="grid grid-cols-3 gap-2 w-[300px] h-[300px] mx-auto">
-      {Array(9).fill().map((_, i) => {
-        const x = i % 3;
-        const y = Math.floor(i / 3);
-        const active = position &&
-          x === position[0] &&
-          y === position[1];
-        
-        return (
-          <div
-            key={i}
-            className={cn(
-              "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl h-[90px]",
-              active ? "bg-[color:var(--active-color)] text-white" : "bg-card dark:bg-muted border border-border",
-              !active && "text-transparent"
-            )}
-            style={{ '--active-color': color }}
-          >
-            {active && (
-              <div className="relative w-full h-full flex items-center justify-center">
-                {shape && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Shape type={shape} />
+    <div className="relative">
+      {forced && (
+        <div className="absolute top-0 left-0 bg-red-500 text-white text-xs px-1 rounded z-10">
+          Forced
+        </div>
+      )}
+      <div className="grid grid-cols-3 gap-2 w-[300px] h-[300px] mx-auto">
+        {Array(9).fill().map((_, i) => {
+          const x = i % 3;
+          const y = Math.floor(i / 3);
+          const active = position &&
+            x === position[0] &&
+            y === position[1];
+          
+          return (
+            <div
+              key={i}
+              className={cn(
+                "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl h-[90px]",
+                active ? "bg-[color:var(--active-color)] text-white" : "bg-card dark:bg-muted border border-border",
+                !active && "text-transparent"
+              )}
+              style={{ '--active-color': color }}
+            >
+              {active && (
+                <div className="relative w-full h-full flex items-center justify-center">
+                  {shape && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Shape type={shape} />
+                    </div>
+                  )}
+                  <div className="relative z-10 font-bold text-3xl" style={{ color: color }}>
+                    {number}
                   </div>
-                )}
-                <div className="relative z-10 font-bold text-3xl" style={{ color: color }}>
-                  {number}
                 </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -259,6 +266,10 @@ export default function NBack() {
   });
 
   const [sequence, setSequence] = useState([]);
+  const sequenceRef = useRef([]);
+  useEffect(() => {
+    sequenceRef.current = sequence;
+  }, [sequence]);
   const [current, setCurrent] = useState(null);
   const [score, setScore] = useState({
     position: { correct: 0, incorrect: 0 },
@@ -331,11 +342,72 @@ export default function NBack() {
     if (settings.stimuli.number || settings.stimuli.shape) {
       stimulus.number = Math.floor(Math.random() * 9) + 1;
     }
-
+    
     if (settings.stimuli.shape) {
       stimulus.shape = SHAPES[Math.floor(Math.random() * Math.min(settings.shapeCount, SHAPES.length))];
     }
     
+    // Implement forced matches using the advanced "Guaranteed Matches Chance"
+    if (settings.guaranteedMatchesChance > 0 && sequenceRef.current.length > 0) {
+      const forcedStimulus = { ...stimulus };
+      let anyForced = false;
+      
+      if (settings.stimuli.position && sequenceRef.current.length >= getNBackForType('position')) {
+        if (Math.random() < settings.guaranteedMatchesChance) {
+          const n = getNBackForType('position');
+          forcedStimulus.position = sequenceRef.current[sequenceRef.current.length - n].position;
+          console.log("Forced match applied for position");
+          anyForced = true;
+        }
+      }
+      if (settings.stimuli.color && sequenceRef.current.length >= getNBackForType('color')) {
+        if (Math.random() < settings.guaranteedMatchesChance) {
+          const n = getNBackForType('color');
+          forcedStimulus.color = sequenceRef.current[sequenceRef.current.length - n].color;
+          console.log("Forced match applied for color");
+          anyForced = true;
+        }
+      }
+      if (settings.stimuli.number && sequenceRef.current.length >= getNBackForType('number')) {
+        if (Math.random() < settings.guaranteedMatchesChance) {
+          const n = getNBackForType('number');
+          forcedStimulus.number = sequenceRef.current[sequenceRef.current.length - n].number;
+          console.log("Forced match applied for number");
+          anyForced = true;
+        }
+      }
+      if (settings.stimuli.shape && sequenceRef.current.length >= getNBackForType('shape')) {
+        if (Math.random() < settings.guaranteedMatchesChance) {
+          const n = getNBackForType('shape');
+          forcedStimulus.shape = sequenceRef.current[sequenceRef.current.length - n].shape;
+          console.log("Forced match applied for shape");
+          anyForced = true;
+        }
+      }
+      if (settings.stimuli.audio && sequenceRef.current.length >= getNBackForType('audio')) {
+        if (Math.random() < settings.guaranteedMatchesChance) {
+          const n = getNBackForType('audio');
+          const prevAudio = sequenceRef.current[sequenceRef.current.length - n];
+          const audioType = stimulus.selectedAudioType;
+          if (audioType === 'letters' && prevAudio.letter) {
+            forcedStimulus.letter = prevAudio.letter;
+            console.log("Forced match applied for audio (letters)");
+            anyForced = true;
+          } else if (audioType === 'numbers' && prevAudio.spokenNumber) {
+            forcedStimulus.spokenNumber = prevAudio.spokenNumber;
+            console.log("Forced match applied for audio (numbers)");
+            anyForced = true;
+          } else if (audioType === 'tone' && prevAudio.tone) {
+            forcedStimulus.tone = prevAudio.tone;
+            console.log("Forced match applied for audio (tone)");
+            anyForced = true;
+          }
+        }
+      }
+      if (anyForced) {
+        return forcedStimulus;
+      }
+    }
     return stimulus;
   }, [settings]);
 

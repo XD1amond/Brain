@@ -313,6 +313,25 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
             />
           </div>
         </SettingsGroup>
+
+        <SettingsGroup title="Advanced" defaultExpanded={false}>
+          <div className="form-group">
+            <label className="form-label">Guaranteed Matches Chance</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={settings.guaranteedMatchesChance}
+                onChange={e => handleChange('guaranteedMatchesChance', parseFloat(e.target.value))}
+                className="form-range w-32"
+                disabled={isPlaying}
+              />
+              <span className="text-sm font-medium">{settings.guaranteedMatchesChance}</span>
+            </div>
+          </div>
+        </SettingsGroup>
       </div>
     </div>
   );
