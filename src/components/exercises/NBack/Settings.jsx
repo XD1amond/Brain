@@ -319,16 +319,16 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
             <label className="form-label">Guaranteed Matches Chance</label>
             <div className="flex items-center gap-2">
               <input
-                type="range"
+                type="number"
+                value={settings.guaranteedMatchesChance * 100}
+                onChange={e => handleChange('guaranteedMatchesChance', Math.max(0, Math.min(100, parseFloat(e.target.value))) / 100)}
+                className="form-input w-24"
+                step="0.1"
                 min="0"
-                max="1"
-                step="0.01"
-                value={settings.guaranteedMatchesChance}
-                onChange={e => handleChange('guaranteedMatchesChance', parseFloat(e.target.value))}
-                className="form-range w-32"
+                max="100"
                 disabled={isPlaying}
               />
-              <span className="text-sm font-medium">{settings.guaranteedMatchesChance}</span>
+              <span className="text-sm text-muted-foreground">%</span>
             </div>
           </div>
         </SettingsGroup>

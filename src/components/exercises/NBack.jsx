@@ -256,7 +256,6 @@ export default function NBack() {
       stimuli: true,
       timing: false
     },
-    guaranteedMatchesChance: 0.125,
     // Keybind settings
     positionKey: 'a',
     audioKey: 'l',
