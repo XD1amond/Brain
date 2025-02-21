@@ -2,7 +2,7 @@
 
 A comprehensive cognitive enhancement platform featuring scientifically-designed exercises to improve various aspects of cognitive function.
 
-[Website](https://xd1amond.github.io/Brain/#/analytics)
+[Website](https://xd1amond.github.io/Brain/#)
 
 ## Exercises
 
