@@ -257,6 +257,7 @@ export default function NBack() {
       timing: false
     },
     guaranteedMatchesChance: 0.125,
+    interferenceChance: 0.125,
     // Keybind settings
     positionKey: 'a',
     audioKey: 'l',
@@ -409,6 +410,76 @@ export default function NBack() {
         return forcedStimulus;
       }
     }
+    
+    // Implement interference: introduce near-miss stimuli to train resolution of cognitive interference.
+    if (sequenceRef.current.length > 0) {
+      const interferenceStimulus = { ...stimulus };
+      let interferenceApplied = false;
+      
+      // For each stimulus type, apply interference if conditions met.
+      if (settings.stimuli.position && sequenceRef.current.length >= getNBackForType('position') && getNBackForType('position') > 1 && Math.random() < settings.interferenceChance) {
+        const n = getNBackForType('position');
+        const prevPos = sequenceRef.current[sequenceRef.current.length - n].position;
+        // For 2D grid: adjust each coordinate by ±1 modulo 3.
+        interferenceStimulus.position = prevPos.map(coord => (coord + (Math.random() < 0.5 ? -1 : 1) + 3) % 3);
+        interferenceApplied = true;
+        console.log("Interference applied for position");
+      }
+      
+      if (settings.stimuli.number && sequenceRef.current.length >= getNBackForType('number') && getNBackForType('number') > 1) {
+        const n = getNBackForType('number');
+        const prevNumber = sequenceRef.current[sequenceRef.current.length - n].number;
+        // Adjust number by ±1 within range 1-9.
+        let newNumber = prevNumber + (Math.random() < 0.5 ? -1 : 1);
+        if (newNumber < 1) newNumber = 1;
+        if (newNumber > 9) newNumber = 9;
+        interferenceStimulus.number = newNumber;
+        interferenceApplied = true;
+        console.log("Interference applied for number");
+      }
+      
+      if (settings.stimuli.shape && sequenceRef.current.length >= getNBackForType('shape') && getNBackForType('shape') > 1) {
+        const n = getNBackForType('shape');
+        const prevShape = sequenceRef.current[sequenceRef.current.length - n].shape;
+        // Choose a different shape from the previous one.
+        const availableShapes = SHAPES.filter(s => s !== prevShape);
+        if (availableShapes.length > 0) {
+          interferenceStimulus.shape = availableShapes[Math.floor(Math.random() * availableShapes.length)];
+          interferenceApplied = true;
+          console.log("Interference applied for shape");
+        }
+      }
+      
+      if (settings.stimuli.audio && sequenceRef.current.length >= getNBackForType('audio') && getNBackForType('audio') > 1) {
+        const n = getNBackForType('audio');
+        const prevAudio = sequenceRef.current[sequenceRef.current.length - n];
+        const audioType = stimulus.selectedAudioType;
+        if (audioType === 'letters' && prevAudio.letter) {
+          // Shift letter to next in sequence.
+          const index = LETTERS.indexOf(prevAudio.letter);
+          interferenceStimulus.letter = LETTERS[(index + 1) % LETTERS.length];
+          interferenceApplied = true;
+          console.log("Interference applied for audio (letters)");
+        } else if (audioType === 'numbers' && prevAudio.spokenNumber) {
+          let newNum = prevAudio.spokenNumber + (Math.random() < 0.5 ? -1 : 1);
+          if(newNum < 1) newNum = 1;
+          if(newNum > 9) newNum = 9;
+          interferenceStimulus.spokenNumber = newNum;
+          interferenceApplied = true;
+          console.log("Interference applied for audio (numbers)");
+        } else if (audioType === 'tone' && prevAudio.tone) {
+          const index = LETTERS.indexOf(prevAudio.tone);
+          interferenceStimulus.tone = LETTERS[(index + 1) % LETTERS.length];
+          interferenceApplied = true;
+          console.log("Interference applied for audio (tone)");
+        }
+      }
+      
+      if (interferenceApplied) {
+        return interferenceStimulus;
+      }
+    }
+    
     return stimulus;
   }, [settings]);
 

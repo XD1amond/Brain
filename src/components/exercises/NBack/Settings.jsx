@@ -331,6 +331,22 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
               <span className="text-sm text-muted-foreground">%</span>
             </div>
           </div>
+          <div className="form-group mt-4">
+            <label className="form-label">Interference Chance</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={settings.interferenceChance * 100}
+                onChange={e => handleChange('interferenceChance', Math.max(0, Math.min(100, parseFloat(e.target.value))) / 100)}
+                className="form-input w-24"
+                step="0.1"
+                min="0"
+                max="100"
+                disabled={isPlaying}
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+            </div>
+          </div>
         </SettingsGroup>
       </div>
     </div>
