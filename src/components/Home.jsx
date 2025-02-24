@@ -106,12 +106,12 @@ export default function Home() {
                 key={exercise.path}
                 variants={itemVariants}
                 whileHover={{ y: -5 }}
-                className="relative"
+                className="relative h-full"
               >
                 <Link
                   to={exercise.path}
                   className={cn(
-                    "block p-8 rounded-2xl overflow-hidden shadow-none",
+                    "block h-full flex flex-col p-8 rounded-2xl overflow-hidden shadow-none",
                     "bg-gradient-to-br",
                     exercise.color,
                     "hover:shadow-xl transition-all duration-300",
