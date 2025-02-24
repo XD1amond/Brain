@@ -239,36 +239,159 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
           <div className="space-y-4">
             <div className="form-group">
               <label className="form-label">Display Duration (ms)</label>
-              <div className="flex items-center gap-2">
+              {settings.randomizeDisplayDuration ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={settings.displayDurationMin === "" ? "" : settings.displayDurationMin}
+                    onChange={e => {
+                      if (e.target.value === "") {
+                        handleChange('displayDurationMin', "");
+                      } else {
+                        handleChange('displayDurationMin', Math.max(0, parseInt(e.target.value)));
+                      }
+                    }}
+                    onBlur={e => {
+                      if(e.target.value === "") {
+                        handleChange('displayDurationMin', 2000);
+                      }
+                    }}
+                    {...(settings.displayDurationMin === "" ? {} : { min: "0" })}
+                    className="form-input w-24"
+                    disabled={isPlaying}
+                  />
+                  <span>to</span>
+                  <input
+                    type="number"
+                    value={settings.displayDurationMax === "" ? "" : settings.displayDurationMax}
+                    onChange={e => {
+                      if (e.target.value === "") {
+                        handleChange('displayDurationMax', "");
+                      } else {
+                        handleChange('displayDurationMax', Math.max(0, parseInt(e.target.value)));
+                      }
+                    }}
+                    onBlur={e => {
+                      if(e.target.value === "") {
+                        handleChange('displayDurationMax', 3000);
+                      }
+                    }}
+                    {...(settings.displayDurationMax === "" ? {} : { min: "0" })}
+                    className="form-input w-24"
+                    disabled={isPlaying}
+                  />
+                  <span className="text-sm text-muted-foreground">milliseconds</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={settings.displayDuration}
+                    onChange={e => handleChange('displayDuration', e.target.value)}
+                    onBlur={e => {
+                      if (e.target.value === "" || isNaN(parseInt(e.target.value))) {
+                        handleChange('displayDuration', 3000);
+                      } else {
+                        handleChange('displayDuration', parseInt(e.target.value));
+                      }
+                    }}
+                    className="form-input w-24"
+                    disabled={isPlaying}
+                  />
+                  <span className="text-sm text-muted-foreground">milliseconds</span>
+                </div>
+              )}
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors mt-2">
                 <input
-                  type="number"
-                  value={settings.displayDuration}
-                  onChange={e => handleChange('displayDuration', Math.max(500, parseInt(e.target.value)))}
-                  min="500"
-                  max="10000"
-                  step="100"
-                  className="form-input w-24"
+                  type="checkbox"
+                  checked={settings.randomizeDisplayDuration || false}
+                  onChange={e => handleChange('randomizeDisplayDuration', e.target.checked)}
+                  className="form-checkbox"
                   disabled={isPlaying}
                 />
-                <span className="text-sm text-muted-foreground">milliseconds</span>
-              </div>
+                <span>Randomize Display Duration</span>
+              </label>
             </div>
 
             <div className="form-group">
               <label className="form-label">Delay Between Turns (ms)</label>
-              <div className="flex items-center gap-2">
+              {settings.randomizeDelayDuration ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={settings.delayDurationMin === "" ? "" : settings.delayDurationMin || 400}
+                    onChange={e => {
+                      if (e.target.value === "") {
+                        handleChange('delayDurationMin', "");
+                      } else {
+                        handleChange('delayDurationMin', Math.max(0, parseInt(e.target.value)));
+                      }
+                    }}
+                    onBlur={e => {
+                      if(e.target.value === "") {
+                        handleChange('delayDurationMin', 400);
+                      }
+                    }}
+                    className="form-input w-24"
+                    disabled={isPlaying}
+                  />
+                  <span>to</span>
+                  <input
+                    type="number"
+                    value={settings.delayDurationMax === "" ? "" : settings.delayDurationMax || 600}
+                    onChange={e => {
+                      if (e.target.value === "") {
+                        handleChange('delayDurationMax', "");
+                      } else {
+                        handleChange('delayDurationMax', Math.max(0, parseInt(e.target.value)));
+                      }
+                    }}
+                    onBlur={e => {
+                      if (e.target.value === "") {
+                        handleChange('delayDurationMax', 600);
+                      }
+                    }}
+                    className="form-input w-24"
+                    disabled={isPlaying}
+                  />
+                  <span className="text-sm text-muted-foreground">milliseconds</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={settings.delayDuration === "" ? "" : settings.delayDuration}
+                    onChange={e => {
+                      if (e.target.value === "") {
+                        handleChange('delayDuration', "");
+                      } else {
+                        handleChange('delayDuration', Math.max(0, parseInt(e.target.value)));
+                      }
+                    }}
+                    onBlur={e => {
+                      if (e.target.value === "" || isNaN(parseInt(e.target.value))) {
+                        handleChange('delayDuration', 500);
+                      }
+                    }}
+                    min="0"
+                    max="2000"
+                    step="100"
+                    className="form-input w-24"
+                    disabled={isPlaying}
+                  />
+                  <span className="text-sm text-muted-foreground">milliseconds</span>
+                </div>
+              )}
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors mt-2">
                 <input
-                  type="number"
-                  value={settings.delayDuration}
-                  onChange={e => handleChange('delayDuration', Math.max(0, parseInt(e.target.value)))}
-                  min="0"
-                  max="2000"
-                  step="100"
-                  className="form-input w-24"
+                  type="checkbox"
+                  checked={settings.randomizeDelayDuration || false}
+                  onChange={e => handleChange('randomizeDelayDuration', e.target.checked)}
+                  className="form-checkbox"
                   disabled={isPlaying}
                 />
-                <span className="text-sm text-muted-foreground">milliseconds</span>
-              </div>
+                <span>Randomize Delay Duration</span>
+              </label>
             </div>
           </div>
         </SettingsGroup>

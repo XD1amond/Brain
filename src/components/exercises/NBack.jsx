@@ -237,7 +237,13 @@ export default function NBack() {
     },
     shapeCount: 2,
     displayDuration: 3000,
+    randomizeDisplayDuration: false,
+    displayDurationMin: 2000,
+    displayDurationMax: 3000,
     delayDuration: 500,
+    randomizeDelayDuration: false,
+    delayDurationMin: 400,
+    delayDurationMax: 600,
     autoRotate: false,
     audioTypes: {
       tone: false,
@@ -532,31 +538,43 @@ export default function NBack() {
     }
   }, [settings.audioTypes]);
 
+  // Use a ref to hold stable settings so that timing isn't recalculated on every render.
+  const settingsRef = useRef(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+  
   useEffect(() => {
     if (!isPlaying) return;
     
     let timeoutId;
     const runTurn = () => {
+      const currentSettings = settingsRef.current;
       const newStimulus = generateStimulus();
       setSequence(prev => [...prev, newStimulus]);
       setCurrent(newStimulus);
       
-      if (settings.stimuli.audio) {
+      if (currentSettings.stimuli.audio) {
         playSound(newStimulus);
       }
-
-      // Clear current stimulus after display duration
+      
+      const displayDuration = currentSettings.randomizeDisplayDuration
+        ? Math.floor(Math.random() * (currentSettings.displayDurationMax - currentSettings.displayDurationMin + 1)) + currentSettings.displayDurationMin
+        : currentSettings.displayDuration;
+      const delayDuration = currentSettings.randomizeDelayDuration
+        ? Math.floor(Math.random() * (currentSettings.delayDurationMax - currentSettings.delayDurationMin + 1)) + currentSettings.delayDurationMin
+        : currentSettings.delayDuration;
+      
       timeoutId = setTimeout(() => {
         setCurrent(null);
-        // Wait for configured delay before starting next turn
-        timeoutId = setTimeout(runTurn, settings.delayDuration);
-      }, settings.displayDuration);
+        timeoutId = setTimeout(runTurn, delayDuration);
+      }, displayDuration);
     };
     
     runTurn();
     
     return () => clearTimeout(timeoutId);
-  }, [isPlaying, generateStimulus, playSound, settings.displayDuration]);
+  }, [isPlaying, generateStimulus, playSound]);
 
   const getNBackForType = useCallback((type) => {
     if (!settings.useIndividualNBacks || !settings.individualNBacks[type] || settings.individualNBacks[type] === 0) {
