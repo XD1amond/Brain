@@ -28,6 +28,7 @@ function getNBackType(stimuli) {
 
 export default function NBack() {
   const [nbackHistory, setNbackHistory] = useLocalStorage('nback_history', []);
+  const [focusMode, setFocusMode] = useState(false);
   const [settings, setSettings] = useLocalStorage('nback-settings', {
     is3D: false,
     nBack: 1,
@@ -65,6 +66,13 @@ export default function NBack() {
       nback: true,
       stimuli: true,
       timing: false
+    },
+    focusElements: {
+      title: false,
+      settings: false,
+      score: false,
+      history: false,
+      stimuliButtons: true
     },
     guaranteedMatchesChance: 0.125,
     interferenceChance: 0.125,
@@ -486,11 +494,18 @@ export default function NBack() {
 
     // Check if the pressed key matches any of our keybinds
     const isKeybind = Object.values(keybinds).includes(key) ||
-      (key === ' ' && keybinds.startStop === 'space');
+      (key === ' ' && keybinds.startStop === 'space') ||
+      key === 'e';
 
     // Prevent default behavior if it's one of our keybinds
     if (isKeybind) {
       e.preventDefault();
+    }
+    
+    // Handle focus mode toggle with 'e' key
+    if (key === 'e') {
+      setFocusMode(prev => !prev);
+      return;
     }
     
     // Handle start/stop key
@@ -603,65 +618,237 @@ export default function NBack() {
   }, [handleKeyPress]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 flex gap-8">
-        <div className="w-[200px] mt-[56px]">
-          <div className="bg-card rounded-xl p-6 shadow-lg space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Score</h2>
-            </div>
-            {/* Total Score */}
-            <div className="border-b border-border pb-4 mb-4">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Total</span>
-                <span className="text-lg font-semibold">
-                  {(() => {
-                    const enabledScores = Object.entries(score)
-                      .filter(([type]) => settings.stimuli[type]);
-                    
-                    const totals = enabledScores.reduce((acc, [_, stats]) => ({
-                      correct: acc.correct + stats.correct,
-                      incorrect: acc.incorrect + stats.incorrect
-                    }), { correct: 0, incorrect: 0 });
-
-                    const totalAttempts = totals.correct + totals.incorrect;
-                    return totalAttempts > 0
-                      ? `${Math.round((totals.correct / totalAttempts) * 100)}%`
-                      : '0%';
-                  })()}
-                </span>
+    <div className={cn("min-h-screen bg-background", focusMode && "overflow-hidden")}>
+      {focusMode ? (
+        <div className="fixed inset-0 bg-background">
+          <div className="absolute top-2 right-2 text-xs text-muted-foreground bg-card px-2 py-1 rounded-md opacity-50 hover:opacity-100 z-50">
+            Press 'E' to exit focus mode
+          </div>
+          
+          {/* Main container with proper spacing for the header */}
+          <div className="w-full h-full pt-16 pb-8 flex flex-col">
+            {/* Title - positioned below the header */}
+            {settings.focusElements?.title && (
+              <div className="text-center mb-4">
+                <h2 className="text-2xl font-bold">{getNBackType(settings.stimuli)} N-Back</h2>
               </div>
-            </div>
-            <div className="space-y-4">
-              {Object.entries(score).map(([type, stats]) => (
-                settings.stimuli[type] && (
-                  <div key={type} className="space-y-1">
+            )}
+            
+            {/* Main content area */}
+            <div className="flex-1 flex items-center justify-center relative">
+              {/* Score panel - positioned on the left and vertically centered */}
+              {settings.focusElements?.score && (
+                <div className="absolute left-8 top-1/2 -translate-y-1/2 bg-card rounded-xl p-4 shadow-lg w-[250px] z-10">
+                  <h2 className="text-xl font-bold mb-4">Score</h2>
+                  <div className="border-b border-border pb-2 mb-2">
                     <div className="flex justify-between items-center">
-                      <span className="capitalize font-medium">{type}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round((stats.correct / Math.max(stats.correct + stats.incorrect, 1)) * 100)}%
+                      <span className="font-medium">Total</span>
+                      <span className="text-lg font-semibold">
+                        {(() => {
+                          const enabledScores = Object.entries(score)
+                            .filter(([type]) => settings.stimuli[type]);
+                          
+                          const totals = enabledScores.reduce((acc, [_, stats]) => ({
+                            correct: acc.correct + stats.correct,
+                            incorrect: acc.incorrect + stats.incorrect
+                          }), { correct: 0, incorrect: 0 });
+
+                          const totalAttempts = totals.correct + totals.incorrect;
+                          return totalAttempts > 0
+                            ? `${Math.round((totals.correct / totalAttempts) * 100)}%`
+                            : '0%';
+                        })()}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="text-green-500">
-                        +{stats.correct}
-                      </div>
-                      <div className="text-red-500">
-                        -{stats.incorrect}
-                      </div>
+                  </div>
+                  <div className="space-y-3">
+                    {Object.entries(score).map(([type, stats]) => (
+                      settings.stimuli[type] && (
+                        <div key={type} className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="capitalize font-medium">{type}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {Math.round((stats.correct / Math.max(stats.correct + stats.incorrect, 1)) * 100)}%
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="text-green-500">
+                              +{stats.correct}
+                            </div>
+                            <div className="text-red-500">
+                              -{stats.incorrect}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Settings panel - positioned on the right and vertically centered */}
+              {settings.focusElements?.settings && (
+                <div className="absolute right-8 top-1/2 -translate-y-1/2 max-h-[80vh] overflow-y-auto z-10">
+                  <div className="bg-card rounded-xl p-4 shadow-lg w-[350px]">
+                    <Settings settings={settings} onSettingsChange={setSettings} isPlaying={isPlaying} />
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        // Simulate pressing the start/stop key
+                        const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
+                        handleKeyPress({
+                          key: startStopKey === 'space' ? ' ' : startStopKey,
+                          preventDefault: () => {} // Add mock preventDefault
+                        });
+                      }}
+                      className={cn(
+                        "w-full py-2 px-4 rounded-md font-medium transition-colors mt-4",
+                        isPlaying
+                          ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                          : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                      )}
+                    >
+                      {isPlaying ? 'Stop' : 'Start'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Main grid display - ensure full visibility */}
+              <div className="w-full h-full flex items-center justify-center" style={{ height: '60vh' }}>
+                {settings.is3D ? (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Canvas camera={{ position: [6, 6, 6], fov: 55 }}>
+                      <ambientLight intensity={0.7} />
+                      <pointLight position={[10, 10, 10]} intensity={1.2} />
+                      <Grid3D
+                        position={current?.position}
+                        color={current?.color || '#ffffff'}
+                        isActive={true}
+                        number={current?.number}
+                        shape={current?.shape}
+                      />
+                      <OrbitControls
+                        enableZoom={false}
+                        autoRotate={settings.autoRotate}
+                        autoRotateSpeed={1}
+                      />
+                    </Canvas>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="transform scale-150">
+                      <Grid2D
+                        position={current?.position}
+                        color={current?.color || '#3498db'}
+                        number={current?.number}
+                        shape={current?.shape}
+                      />
                     </div>
                   </div>
-                )
-              ))}
+                )}
+              </div>
+            </div>
+            
+            {/* Bottom section for stimuli buttons and history */}
+            <div className="mt-auto">
+              {/* Stimuli Buttons - always at the bottom */}
+              {(settings.focusElements?.stimuliButtons !== false) && (
+                <div className="flex justify-center gap-4 mb-8">
+                  {['position', 'audio', 'number', 'color', 'shape'].map(type => settings.stimuli[type] && (
+                    <button
+                      key={type}
+                      onClick={() => checkMatch(type)}
+                      className={cn(
+                        "px-6 py-3 rounded-lg font-medium transition-all flex flex-col items-center gap-2",
+                        toggledControls[type]
+                          ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
+                          : "bg-muted hover:bg-muted/80"
+                      )}
+                      disabled={!isPlaying}
+                    >
+                      <span className="capitalize">{type}</span>
+                      <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
+                        {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
+                         type === 'audio' ? settings.audioKey?.toUpperCase() || 'L' :
+                         type === 'number' ? settings.numberKey?.toUpperCase() || 'D' :
+                         type === 'color' ? settings.colorKey?.toUpperCase() || 'F' :
+                         settings.shapeKey?.toUpperCase() || 'J'}
+                      </kbd>
+                    </button>
+                  ))}
+                </div>
+              )}
+              
+              {/* History - positioned below the buttons and starts minimized */}
+              {settings.focusElements?.history && (
+                <div className="px-8 max-w-[1000px] mx-auto">
+                  <History sessions={nbackHistory} defaultExpanded={false} />
+                </div>
+              )}
             </div>
           </div>
         </div>
-        
-        <div className="flex-1 bg-card rounded-xl overflow-hidden shadow-lg">
-          <div className="flex flex-col gap-8">
-            <div className="relative">
-              <div className="w-full h-[500px]">
-                <HelpButton text={`N-Back Memory Training:
+      ) : (
+        <>
+          <div className="container mx-auto px-4 py-8 flex gap-8">
+            <div className="w-[200px] mt-[56px]">
+              <div className="bg-card rounded-xl p-6 shadow-lg space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold">Score</h2>
+                </div>
+                {/* Total Score */}
+                <div className="border-b border-border pb-4 mb-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Total</span>
+                    <span className="text-lg font-semibold">
+                      {(() => {
+                        const enabledScores = Object.entries(score)
+                          .filter(([type]) => settings.stimuli[type]);
+                        
+                        const totals = enabledScores.reduce((acc, [_, stats]) => ({
+                          correct: acc.correct + stats.correct,
+                          incorrect: acc.incorrect + stats.incorrect
+                        }), { correct: 0, incorrect: 0 });
+
+                        const totalAttempts = totals.correct + totals.incorrect;
+                        return totalAttempts > 0
+                          ? `${Math.round((totals.correct / totalAttempts) * 100)}%`
+                          : '0%';
+                      })()}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {Object.entries(score).map(([type, stats]) => (
+                    settings.stimuli[type] && (
+                      <div key={type} className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="capitalize font-medium">{type}</span>
+                          <span className="text-sm text-muted-foreground">
+                            {Math.round((stats.correct / Math.max(stats.correct + stats.incorrect, 1)) * 100)}%
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="text-green-500">
+                            +{stats.correct}
+                          </div>
+                          <div className="text-red-500">
+                            -{stats.incorrect}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex-1 bg-card rounded-xl overflow-hidden shadow-lg">
+              <div className="flex flex-col gap-8">
+                <div className="relative">
+                  <div className="w-full h-[500px]">
+                    <HelpButton text={`N-Back Memory Training:
 
 Watch for patterns that match what appeared N positions back in the sequence. Press the corresponding key when you detect a match:
 
@@ -674,92 +861,94 @@ Watch for patterns that match what appeared N positions back in the sequence. Pr
 Press ${settings.startStopKey === 'Space' ? 'SPACE' : settings.startStopKey?.toUpperCase() || 'SPACE'} to start/stop the game.
 
 Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, press the matching key.`} />
-                {settings.is3D ? (
-                  <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
-                    <ambientLight intensity={0.5} />
-                    <pointLight position={[10, 10, 10]} />
-                    <Grid3D
-                      position={current?.position}
-                      color={current?.color || '#ffffff'}
-                      isActive={true}
-                      number={current?.number}
-                      shape={current?.shape}
-                    />
-                    <OrbitControls
-                      enableZoom={false}
-                      autoRotate={settings.autoRotate}
-                      autoRotateSpeed={1}
-                    />
-                  </Canvas>
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <Grid2D
-                      position={current?.position}
-                      color={current?.color || '#3498db'}
-                      number={current?.number}
-                      shape={current?.shape}
-                    />
+                    {settings.is3D ? (
+                      <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
+                        <ambientLight intensity={0.5} />
+                        <pointLight position={[10, 10, 10]} />
+                        <Grid3D
+                          position={current?.position}
+                          color={current?.color || '#ffffff'}
+                          isActive={true}
+                          number={current?.number}
+                          shape={current?.shape}
+                        />
+                        <OrbitControls
+                          enableZoom={false}
+                          autoRotate={settings.autoRotate}
+                          autoRotateSpeed={1}
+                        />
+                      </Canvas>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <Grid2D
+                          position={current?.position}
+                          color={current?.color || '#3498db'}
+                          number={current?.number}
+                          shape={current?.shape}
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+
+                <div className="flex justify-center gap-4 pb-6">
+                  {['position', 'audio', 'number', 'color', 'shape'].map(type => settings.stimuli[type] && (
+                    <button
+                      key={type}
+                      onClick={() => checkMatch(type)}
+                      className={cn(
+                        "px-6 py-3 rounded-lg font-medium transition-all flex flex-col items-center gap-2",
+                        toggledControls[type]
+                          ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
+                          : "bg-muted hover:bg-muted/80"
+                      )}
+                      disabled={!isPlaying}
+                    >
+                      <span className="capitalize">{type}</span>
+                      <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
+                        {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
+                         type === 'audio' ? settings.audioKey?.toUpperCase() || 'L' :
+                         type === 'number' ? settings.numberKey?.toUpperCase() || 'D' :
+                         type === 'color' ? settings.colorKey?.toUpperCase() || 'F' :
+                         settings.shapeKey?.toUpperCase() || 'J'}
+                      </kbd>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-center gap-4 pb-6">
-              {['position', 'audio', 'number', 'color', 'shape'].map(type => settings.stimuli[type] && (
-                <button
-                  key={type}
-                  onClick={() => checkMatch(type)}
-                  className={cn(
-                    "px-6 py-3 rounded-lg font-medium transition-all flex flex-col items-center gap-2",
-                    toggledControls[type]
-                      ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
-                      : "bg-muted hover:bg-muted/80"
-                  )}
-                  disabled={!isPlaying}
-                >
-                  <span className="capitalize">{type}</span>
-                  <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
-                    {type === 'position' ? 'A' :
-                     type === 'audio' ? 'L' :
-                     type === 'number' ? 'D' :
-                     type === 'color' ? 'F' :
-                     'J'}
-                  </kbd>
-                </button>
-              ))}
+            <div className="w-[350px]">
+              <h2 className="text-2xl font-bold mb-6">{getNBackType(settings.stimuli)} N-Back</h2>
+              <Settings settings={settings} onSettingsChange={setSettings} isPlaying={isPlaying} />
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  // Simulate pressing the start/stop key
+                  const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
+                  handleKeyPress({
+                    key: startStopKey === 'space' ? ' ' : startStopKey,
+                    preventDefault: () => {} // Add mock preventDefault
+                  });
+                }}
+                className={cn(
+                  "w-full py-2 px-4 rounded-md font-medium transition-colors mt-6",
+                  isPlaying
+                    ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                    : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                )}
+              >
+                {isPlaying ? 'Stop' : 'Start'}
+              </button>
             </div>
           </div>
-        </div>
-
-        <div className="w-[350px]">
-          <h2 className="text-2xl font-bold mb-6">{getNBackType(settings.stimuli)} N-Back</h2>
-          <Settings settings={settings} onSettingsChange={setSettings} isPlaying={isPlaying} />
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              // Simulate pressing the start/stop key
-              const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
-              handleKeyPress({
-                key: startStopKey === 'space' ? ' ' : startStopKey,
-                preventDefault: () => {} // Add mock preventDefault
-              });
-            }}
-            className={cn(
-              "w-full py-2 px-4 rounded-md font-medium transition-colors mt-6",
-              isPlaying
-                ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                : "bg-primary hover:bg-primary/90 text-primary-foreground"
-            )}
-          >
-            {isPlaying ? 'Stop' : 'Start'}
-          </button>
-        </div>
-      </div>
-      
-      {/* History Section */}
-      <div className="container mx-auto px-4 pb-8">
-        <History sessions={nbackHistory} />
-      </div>
+          
+          {/* History Section */}
+          <div className="container mx-auto px-4 pb-8">
+            <History sessions={nbackHistory} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

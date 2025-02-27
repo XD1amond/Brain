@@ -316,8 +316,8 @@ function HistoryItem({ session, index }) {
   );
 }
 
-export function History({ sessions }) {
-  const [expanded, setExpanded] = useState(true);
+export function History({ sessions, defaultExpanded = true }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   
   if (!sessions || sessions.length === 0) {
     return null;

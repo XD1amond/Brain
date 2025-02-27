@@ -434,6 +434,90 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
               onChange={value => handleChange('startStopKey', value)}
               defaultValue="Space"
             />
+            <div className="form-group">
+              <label className="form-label">Focus Mode</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value="E"
+                  readOnly
+                  className="form-input w-20 bg-muted/50"
+                />
+              </div>
+            </div>
+          </div>
+        </SettingsGroup>
+
+        <SettingsGroup title="Focus" defaultExpanded={false}>
+          <div className="space-y-2">
+            <div className="text-sm text-muted-foreground mb-2">
+              Select which elements remain visible in focus mode:
+            </div>
+            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={settings.focusElements?.title || false}
+                onChange={e => handleChange('focusElements', {
+                  ...settings.focusElements || {},
+                  title: e.target.checked
+                })}
+                className="form-checkbox"
+                disabled={isPlaying}
+              />
+              <span>Title</span>
+            </label>
+            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={settings.focusElements?.settings || false}
+                onChange={e => handleChange('focusElements', {
+                  ...settings.focusElements || {},
+                  settings: e.target.checked
+                })}
+                className="form-checkbox"
+                disabled={isPlaying}
+              />
+              <span>Settings</span>
+            </label>
+            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={settings.focusElements?.score || false}
+                onChange={e => handleChange('focusElements', {
+                  ...settings.focusElements || {},
+                  score: e.target.checked
+                })}
+                className="form-checkbox"
+                disabled={isPlaying}
+              />
+              <span>Score</span>
+            </label>
+            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={settings.focusElements?.history || false}
+                onChange={e => handleChange('focusElements', {
+                  ...settings.focusElements || {},
+                  history: e.target.checked
+                })}
+                className="form-checkbox"
+                disabled={isPlaying}
+              />
+              <span>History</span>
+            </label>
+            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={settings.focusElements?.stimuliButtons === undefined ? true : settings.focusElements.stimuliButtons}
+                onChange={e => handleChange('focusElements', {
+                  ...settings.focusElements || {},
+                  stimuliButtons: e.target.checked
+                })}
+                className="form-checkbox"
+                disabled={isPlaying}
+              />
+              <span>Stimuli Buttons</span>
+            </label>
           </div>
         </SettingsGroup>
 
