@@ -1,56 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { HelpButton } from '@/components/HelpButton';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Text, Html } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { getTodayDate } from '@/lib/dateUtils';
 import { Settings } from './NBack/Settings';
+import { Grid2D, Grid3D } from './NBack/Grid';
+import { History } from './NBack/History';
 
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
 const SHAPES = ['circle', 'triangle', 'square', 'pentagon', 'hexagon', 'heptagon', 'octagon'];
-
-function Shape({ type, size = 80 }) {
-  if (type === 'circle') {
-    return (
-      <svg width={size} height={size} className="absolute inset-0 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <circle cx={size/2} cy={size/2} r={size/2 - 2} fill="currentColor" className="opacity-50" />
-      </svg>
-    );
-  }
-
-  const getPoints = () => {
-    const points = [];
-    const sides = {
-      triangle: 3,
-      square: 4,
-      pentagon: 5,
-      hexagon: 6,
-      heptagon: 7,
-      octagon: 8
-    }[type] || 3;
-    
-    // For triangle, adjust starting angle to center it
-    const startAngle = type === 'triangle' ? -Math.PI / 2 : -Math.PI / 2;
-    
-    for (let i = 0; i < sides; i++) {
-      const angle = (i * 2 * Math.PI / sides) + startAngle;
-      points.push([
-        size/2 * Math.cos(angle),
-        size/2 * Math.sin(angle)
-      ]);
-    }
-    return points.map(([x, y]) => `${x + size/2},${y + size/2}`).join(' ');
-  };
-
-  return (
-    <svg width={size} height={size} className="absolute inset-0 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-      <polygon points={getPoints()} fill="currentColor" className="opacity-50" />
-    </svg>
-  );
-}
 
 function getNBackType(stimuli) {
   const activeCount = Object.values(stimuli).filter(Boolean).length;
@@ -64,166 +26,8 @@ function getNBackType(stimuli) {
   return types[activeCount] || '';
 }
 
-function CubeFace({ position, rotation, color, number, shape, isActive }) {
-  return (
-    <group position={position} rotation={rotation}>
-      <Html transform scale={0.41} style={{ width: '180px', height: '180px', pointerEvents: 'none' }}>
-        <div className="relative w-full h-full flex items-center justify-center bg-[color:var(--active-color)]" style={{ '--active-color': color }}>
-          {shape && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Shape type={shape} size={130} />
-            </div>
-          )}
-          <div className="relative z-10 font-bold text-5xl text-white">
-            {number || (isActive ? '●' : '')}
-          </div>
-        </div>
-      </Html>
-    </group>
-  );
-}
-
-function Grid3D({ position, color, isActive, number, shape }) {
-  return (
-    <group>
-      {Array(27).fill().map((_, i) => {
-        const x = (i % 3) - 1;
-        const y = Math.floor((i / 3) % 3) - 1;
-        const z = Math.floor(i / 9) - 1;
-        const active = position &&
-          x === position[0] &&
-          y === position[1] &&
-          z === position[2];
-        
-        return (
-          <group key={i} position={[x * 2, y * 2, z * 2]}>
-            <mesh>
-              <boxGeometry args={[1.8, 1.8, 1.8]} />
-              <meshPhongMaterial
-                color={active ? color : '#ffffff'}
-                opacity={active ? 1 : 0.1}
-                transparent
-                depthWrite={active}
-              />
-            </mesh>
-            {active && (
-              <>
-                {/* Front face */}
-                <CubeFace
-                  position={[0, 0, 0.91]}
-                  rotation={[0, 0, 0]}
-                  color={color}
-                  number={number}
-                  shape={shape}
-                  isActive={isActive}
-                />
-
-                {/* Back face */}
-                <CubeFace
-                  position={[0, 0, -0.91]}
-                  rotation={[0, Math.PI, 0]}
-                  color={color}
-                  number={number}
-                  shape={shape}
-                  isActive={isActive}
-                />
-
-                {/* Right face */}
-                <CubeFace
-                  position={[0.91, 0, 0]}
-                  rotation={[0, Math.PI / 2, 0]}
-                  color={color}
-                  number={number}
-                  shape={shape}
-                  isActive={isActive}
-                />
-
-                {/* Left face */}
-                <CubeFace
-                  position={[-0.91, 0, 0]}
-                  rotation={[0, -Math.PI / 2, 0]}
-                  color={color}
-                  number={number}
-                  shape={shape}
-                  isActive={isActive}
-                />
-
-                {/* Top face */}
-                <CubeFace
-                  position={[0, 0.91, 0]}
-                  rotation={[-Math.PI / 2, 0, 0]}
-                  color={color}
-                  number={number}
-                  shape={shape}
-                  isActive={isActive}
-                />
-
-                {/* Bottom face */}
-                <CubeFace
-                  position={[0, -0.91, 0]}
-                  rotation={[Math.PI / 2, 0, 0]}
-                  color={color}
-                  number={number}
-                  shape={shape}
-                  isActive={isActive}
-                />
-              </>
-            )}
-          </group>
-        );
-      })}
-    </group>
-  );
-}
-
-function Grid2D({ position, color, number, shape, forced }) {
-  return (
-    <div className="relative">
-      {forced && (
-        <div className="absolute top-0 left-0 bg-red-500 text-white text-xs px-1 rounded z-10">
-          Forced
-        </div>
-      )}
-      <div className="grid grid-cols-3 gap-2 w-[300px] h-[300px] mx-auto">
-        {Array(9).fill().map((_, i) => {
-          const x = i % 3;
-          const y = Math.floor(i / 3);
-          const active = position &&
-            x === position[0] &&
-            y === position[1];
-          
-          return (
-            <div
-              key={i}
-              className={cn(
-                "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl h-[90px]",
-                active ? "bg-[color:var(--active-color)] text-white" : "bg-card dark:bg-muted border border-border",
-                !active && "text-transparent"
-              )}
-              style={{ '--active-color': color }}
-            >
-              {active && (
-                <div className="relative w-full h-full flex items-center justify-center">
-                  {shape && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Shape type={shape} />
-                    </div>
-                  )}
-                  <div className="relative z-10 font-bold text-3xl" style={{ color: color }}>
-                    {number}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export default function NBack() {
-  const [nbackAnalytics, setNbackAnalytics] = useLocalStorage('nback_analytics', []);
+  const [nbackHistory, setNbackHistory] = useLocalStorage('nback_history', []);
   const [settings, setSettings] = useLocalStorage('nback-settings', {
     is3D: false,
     nBack: 1,
@@ -550,20 +354,25 @@ export default function NBack() {
     let timeoutId;
     const runTurn = () => {
       const currentSettings = settingsRef.current;
-      const newStimulus = generateStimulus();
-      setSequence(prev => [...prev, newStimulus]);
-      setCurrent(newStimulus);
-      
-      if (currentSettings.stimuli.audio) {
-        playSound(newStimulus);
-      }
-      
       const displayDuration = currentSettings.randomizeDisplayDuration
         ? Math.floor(Math.random() * (currentSettings.displayDurationMax - currentSettings.displayDurationMin + 1)) + currentSettings.displayDurationMin
         : currentSettings.displayDuration;
       const delayDuration = currentSettings.randomizeDelayDuration
         ? Math.floor(Math.random() * (currentSettings.delayDurationMax - currentSettings.delayDurationMin + 1)) + currentSettings.delayDurationMin
         : currentSettings.delayDuration;
+        
+      const newStimulus = {
+        ...generateStimulus(),
+        displayDuration,
+        delayDuration
+      };
+      
+      setSequence(prev => [...prev, newStimulus]);
+      setCurrent(newStimulus);
+      
+      if (currentSettings.stimuli.audio) {
+        playSound(newStimulus);
+      }
       
       timeoutId = setTimeout(() => {
         setCurrent(null);
@@ -714,12 +523,13 @@ export default function NBack() {
           .filter(([_, enabled]) => enabled)
           .map(([type]) => type);
 
-        // Record analytics to local storage
+        // Record session data to local storage with all stimuli
         const session = {
           exercise: 'nback',
           timestamp: Date.now(),
           date: getTodayDate(),
           duration: (Date.now() - startTime) / 1000 / 60,
+          stimuli: sequence, // Store all stimuli for history playback
           metrics: {
             nBackLevel: settings.nBack,
             useIndividualNBacks: settings.useIndividualNBacks,
@@ -735,9 +545,29 @@ export default function NBack() {
             stimuliCount: activeStimuli.length,
             audioTypes: activeAudioTypes,
             audioTypesCount: activeAudioTypes.length
+          },
+          // Store all settings used during this session
+          settings: {
+            is3D: settings.is3D,
+            nBackLevel: settings.nBack,
+            useIndividualNBacks: settings.useIndividualNBacks,
+            individualNBacks: settings.useIndividualNBacks ? settings.individualNBacks : null,
+            autoRotate: settings.autoRotate,
+            activeStimuli,
+            audioTypes: activeAudioTypes,
+            displayDuration: settings.displayDuration,
+            randomizeDisplayDuration: settings.randomizeDisplayDuration,
+            displayDurationMin: settings.displayDurationMin,
+            displayDurationMax: settings.displayDurationMax,
+            delayDuration: settings.delayDuration,
+            randomizeDelayDuration: settings.randomizeDelayDuration,
+            delayDurationMin: settings.delayDurationMin,
+            delayDurationMax: settings.delayDurationMax,
+            guaranteedMatchesChance: settings.guaranteedMatchesChance,
+            interferenceChance: settings.interferenceChance
           }
         };
-        setNbackAnalytics(prev => [...prev, session]);
+        setNbackHistory(prev => [...prev, session]);
 
         // Reset game state
         setSequence([]);
@@ -924,6 +754,11 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
             {isPlaying ? 'Stop' : 'Start'}
           </button>
         </div>
+      </div>
+      
+      {/* History Section */}
+      <div className="container mx-auto px-4 pb-8">
+        <History sessions={nbackHistory} />
       </div>
     </div>
   );
