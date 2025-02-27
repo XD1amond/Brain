@@ -518,6 +518,19 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
               />
               <span>Stimuli Buttons</span>
             </label>
+            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={settings.focusElements?.turnCounter === undefined ? true : settings.focusElements.turnCounter}
+                onChange={e => handleChange('focusElements', {
+                  ...settings.focusElements || {},
+                  turnCounter: e.target.checked
+                })}
+                className="form-checkbox"
+                disabled={isPlaying}
+              />
+              <span>Turn Counter</span>
+            </label>
           </div>
         </SettingsGroup>
 
@@ -554,6 +567,17 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
               <span className="text-sm text-muted-foreground">%</span>
             </div>
           </div>
+          
+          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors mt-4">
+            <input
+              type="checkbox"
+              checked={settings.disableTurnDisplay || false}
+              onChange={e => handleChange('disableTurnDisplay', e.target.checked)}
+              className="form-checkbox"
+              disabled={isPlaying}
+            />
+            <span>Disable Turn Display</span>
+          </label>
         </SettingsGroup>
       </div>
     </div>

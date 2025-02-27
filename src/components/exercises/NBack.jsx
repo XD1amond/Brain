@@ -72,10 +72,12 @@ export default function NBack() {
       settings: false,
       score: false,
       history: false,
-      stimuliButtons: true
+      stimuliButtons: true,
+      turnCounter: true
     },
     guaranteedMatchesChance: 0.125,
     interferenceChance: 0.125,
+    disableTurnDisplay: false,
     // Keybind settings
     positionKey: 'a',
     audioKey: 'l',
@@ -714,6 +716,15 @@ export default function NBack() {
                 </div>
               )}
               
+              {/* Turn counter display */}
+              {settings.focusElements?.turnCounter && !settings.disableTurnDisplay && (
+                <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-card rounded-xl px-6 py-3 shadow-lg z-10">
+                  <div className="text-center">
+                    <span className="text-2xl font-bold">Turn: {sequence.length}</span>
+                  </div>
+                </div>
+              )}
+              
               {/* Main grid display - ensure full visibility */}
               <div className="w-full h-full flex items-center justify-center" style={{ height: '60vh' }}>
                 {settings.is3D ? (
@@ -847,6 +858,14 @@ export default function NBack() {
             <div className="flex-1 bg-card rounded-xl overflow-hidden shadow-lg">
               <div className="flex flex-col gap-8">
                 <div className="relative">
+                  {/* Turn counter display in regular mode */}
+                  {!settings.disableTurnDisplay && (
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+                      <div className="bg-card rounded-xl px-6 py-3 shadow-lg">
+                        <span className="text-2xl font-bold">Turn: {sequence.length}</span>
+                      </div>
+                    </div>
+                  )}
                   <div className="w-full h-[500px]">
                     <HelpButton text={`N-Back Memory Training:
 
