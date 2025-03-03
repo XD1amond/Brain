@@ -29,6 +29,7 @@ function getNBackType(stimuli) {
 export default function NBack() {
   const [nbackHistory, setNbackHistory] = useLocalStorage('nback_history', []);
   const [focusMode, setFocusMode] = useState(false);
+  
   const [settings, setSettings] = useLocalStorage('nback-settings', {
     is3D: false,
     use3DShapes: true, // New setting for 3D shapes when in 3D mode
@@ -41,6 +42,14 @@ export default function NBack() {
       color: 0,
       shape: 0
     },
+    // Auto progression settings
+    autoProgressionEnabled: true,
+    thresholdAdvance: 80,
+    thresholdFallback: 50,
+    thresholdFallbackSessions: 3,
+    progressCount: 0, // Track consecutive sessions below threshold
+    thresholdAdvanceSessions: 1, // Number of consecutive sessions above threshold before increasing level
+    advanceCount: 0, // Track consecutive sessions above threshold
     shapeCount: 6,
     displayDuration: 3000,
     randomizeDisplayDuration: false,
@@ -531,6 +540,100 @@ export default function NBack() {
           ? (totals.correct / totalAttempts) * 100
           : 0;
 
+        // Handle auto progression if enabled
+        if (settings.autoProgressionEnabled && totalAttempts > 0) {
+          // Make sure progressCount is initialized
+          let newSettings = {
+            ...settings,
+            progressCount: settings.progressCount || 0
+          };
+          
+          if (percentageCorrect >= settings.thresholdAdvance) {
+            // Increment advance count for consecutive sessions above threshold
+            const currentAdvanceCount = Number(settings.advanceCount || 0);
+            const advanceThreshold = Number(settings.thresholdAdvanceSessions || 1);
+            newSettings.advanceCount = currentAdvanceCount + 1;
+            
+            // Force update settings immediately to ensure UI reflects the change
+            setSettings({...newSettings});
+            
+            // If we've reached the threshold for consecutive sessions above threshold
+            if (Number(newSettings.advanceCount) >= advanceThreshold) {
+              // Increase n-back level
+              newSettings.nBack = settings.nBack + 1;
+              
+              // If using individual n-back levels, increase those that are active
+              if (settings.useIndividualNBacks) {
+                const newIndividualNBacks = { ...settings.individualNBacks };
+                Object.entries(settings.stimuli)
+                  .filter(([_, enabled]) => enabled)
+                  .forEach(([type]) => {
+                    if (newIndividualNBacks[type] > 0) {
+                      newIndividualNBacks[type] += 1;
+                    }
+                  });
+                newSettings.individualNBacks = newIndividualNBacks;
+              }
+              
+              // Log level increase
+              console.log(`Great job! N-Back level increased to ${newSettings.nBack}`);
+              
+              // Reset advance count
+              newSettings.advanceCount = 0;
+            }
+            
+            // Reset fallback count
+            newSettings.progressCount = 0;
+          }
+          else if (percentageCorrect < settings.thresholdFallback) {
+            // Increment progress count for consecutive sessions below threshold
+            const currentCount = Number(settings.progressCount || 0);
+            const threshold = Number(settings.thresholdFallbackSessions || 3);
+            newSettings.progressCount = currentCount + 1;
+            
+            // Reset advance count since we're below threshold
+            newSettings.advanceCount = 0;
+            
+            // Force update settings immediately to ensure UI reflects the change
+            setSettings({...newSettings});
+            
+            // If we've reached the threshold for consecutive sessions below threshold
+            if (Number(newSettings.progressCount) >= Number(settings.thresholdFallbackSessions || 3)) {
+              // Decrease n-back level, but not below 1
+              if (newSettings.nBack > 1) {
+                newSettings.nBack = settings.nBack - 1;
+                
+                // If using individual n-back levels, decrease those that are active
+                if (settings.useIndividualNBacks) {
+                  const newIndividualNBacks = { ...settings.individualNBacks };
+                  Object.entries(settings.stimuli)
+                    .filter(([_, enabled]) => enabled)
+                    .forEach(([type]) => {
+                      if (newIndividualNBacks[type] > 1) {
+                        newIndividualNBacks[type] -= 1;
+                      }
+                    });
+                  newSettings.individualNBacks = newIndividualNBacks;
+                }
+                
+                // Log level decrease
+                console.log(`N-Back level decreased to ${newSettings.nBack}`);
+              }
+              
+              // Reset progress count
+              newSettings.progressCount = 0;
+            }
+          }
+          else {
+            // Score is between thresholds, reset both counts
+            newSettings.progressCount = 0;
+            newSettings.advanceCount = 0;
+          }
+          
+          // Update settings with a new object to ensure state update
+          setSettings({...newSettings});
+        }
+
         // Get active stimuli types
         const activeStimuli = Object.entries(settings.stimuli)
           .filter(([_, enabled]) => enabled)
@@ -562,7 +665,15 @@ export default function NBack() {
             activeStimuli,
             stimuliCount: activeStimuli.length,
             audioTypes: activeAudioTypes,
-            audioTypesCount: activeAudioTypes.length
+            audioTypesCount: activeAudioTypes.length,
+            // Auto progression metrics
+            autoProgressionEnabled: settings.autoProgressionEnabled,
+            thresholdAdvance: settings.thresholdAdvance,
+            thresholdFallback: settings.thresholdFallback,
+            thresholdFallbackSessions: settings.thresholdFallbackSessions,
+            progressCount: settings.progressCount || 0,
+            thresholdAdvanceSessions: settings.thresholdAdvanceSessions || 1,
+            advanceCount: settings.advanceCount || 0
           },
           // Store all settings used during this session
           settings: {
@@ -582,7 +693,15 @@ export default function NBack() {
             delayDurationMin: settings.delayDurationMin,
             delayDurationMax: settings.delayDurationMax,
             guaranteedMatchesChance: settings.guaranteedMatchesChance,
-            interferenceChance: settings.interferenceChance
+            interferenceChance: settings.interferenceChance,
+            // Auto progression settings
+            autoProgressionEnabled: settings.autoProgressionEnabled,
+            thresholdAdvance: settings.thresholdAdvance,
+            thresholdFallback: settings.thresholdFallback,
+            thresholdFallbackSessions: settings.thresholdFallbackSessions,
+            progressCount: settings.progressCount,
+            thresholdAdvanceSessions: settings.thresholdAdvanceSessions,
+            advanceCount: settings.advanceCount
           }
         };
         setNbackHistory(prev => [...prev, session]);
@@ -946,25 +1065,27 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
             <div className="w-[350px]">
               <h2 className="text-2xl font-bold mb-6">{getNBackType(settings.stimuli)} N-Back</h2>
               <Settings settings={settings} onSettingsChange={setSettings} isPlaying={isPlaying} />
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  // Simulate pressing the start/stop key
-                  const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
-                  handleKeyPress({
-                    key: startStopKey === 'space' ? ' ' : startStopKey,
-                    preventDefault: () => {} // Add mock preventDefault
-                  });
-                }}
-                className={cn(
-                  "w-full py-2 px-4 rounded-md font-medium transition-colors mt-6",
-                  isPlaying
-                    ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                    : "bg-primary hover:bg-primary/90 text-primary-foreground"
-                )}
-              >
-                {isPlaying ? 'Stop' : 'Start'}
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // Simulate pressing the start/stop key
+                    const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
+                    handleKeyPress({
+                      key: startStopKey === 'space' ? ' ' : startStopKey,
+                      preventDefault: () => {} // Add mock preventDefault
+                    });
+                  }}
+                  className={cn(
+                    "w-full py-2 px-4 rounded-md font-medium transition-colors",
+                    isPlaying
+                      ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                      : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                  )}
+                >
+                  {isPlaying ? 'Stop' : 'Start'}
+                </button>
+              </div>
             </div>
           </div>
           

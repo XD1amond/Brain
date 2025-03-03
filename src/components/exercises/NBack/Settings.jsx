@@ -94,6 +94,37 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
       <div className="space-y-4">
         <SettingsGroup title="General" defaultExpanded={false}>
           <div className="space-y-4">
+            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={settings.is3D}
+                onChange={e => handleChange('is3D', e.target.checked)}
+                className="form-checkbox"
+                disabled={isPlaying}
+              />
+              <span>3D Grid</span>
+            </label>
+
+            {settings.is3D && (
+              <div className="space-y-2 ml-6">
+                <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={settings.autoRotate}
+                    onChange={e => handleChange('autoRotate', e.target.checked)}
+                    className="form-checkbox"
+                    disabled={isPlaying}
+                  />
+                  <span>Auto-rotate</span>
+                </label>
+                
+              </div>
+            )}
+          </div>
+        </SettingsGroup>
+
+        <SettingsGroup title="Level" defaultExpanded={false}>
+          <div className="space-y-4">
             <div className="form-group">
               <label className="form-label">N-Back Level</label>
               <input
@@ -101,7 +132,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                 value={settings.nBack}
                 onChange={e => handleChange('nBack', Math.max(1, parseInt(e.target.value)))}
                 min="1"
-                max="5"
+                max="10"
                 className="form-input w-20"
                 disabled={isPlaying}
               />
@@ -131,7 +162,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                           value={settings.individualNBacks?.[type] ?? 0}
                           onChange={e => handleIndividualNBackChange(type, Math.max(0, parseInt(e.target.value)))}
                           min="0"
-                          max="5"
+                          max="10"
                           className="form-input w-20"
                           disabled={isPlaying}
                         />
@@ -144,32 +175,152 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
               </div>
             )}
 
-            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-              <input
-                type="checkbox"
-                checked={settings.is3D}
-                onChange={e => handleChange('is3D', e.target.checked)}
-                className="form-checkbox"
-                disabled={isPlaying}
-              />
-              <span>3D Grid</span>
-            </label>
+            <div className="border-t border-border pt-4 mt-4">
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={settings.autoProgressionEnabled || false}
+                  onChange={e => handleChange('autoProgressionEnabled', e.target.checked)}
+                  className="form-checkbox"
+                  disabled={isPlaying}
+                />
+                <span>Auto Progression</span>
+              </label>
 
-            {settings.is3D && (
-              <div className="space-y-2 ml-6">
-                <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={settings.autoRotate}
-                    onChange={e => handleChange('autoRotate', e.target.checked)}
-                    className="form-checkbox"
-                    disabled={isPlaying}
-                  />
-                  <span>Auto-rotate</span>
-                </label>
-                
-              </div>
-            )}
+              {settings.autoProgressionEnabled && (
+                <div className="space-y-4 ml-6 mt-2">
+                  <div className="form-group">
+                    <label className="form-label">Advance Threshold (%)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={settings.thresholdAdvance || 80}
+                        onChange={e => handleChange('thresholdAdvance', Math.max(50, Math.min(100, parseInt(e.target.value))))}
+                        min="50"
+                        max="100"
+                        className="form-input w-20"
+                        disabled={isPlaying}
+                      />
+                      <div className="text-sm text-muted-foreground">
+                        Increase level when score is above this threshold
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-group mt-4">
+                    <label className="form-label">Advance Sessions</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={settings.thresholdAdvanceSessions || 1}
+                        onChange={e => handleChange('thresholdAdvanceSessions', Math.max(1, parseInt(e.target.value)))}
+                        min="1"
+                        max="10"
+                        className="form-input w-20"
+                        disabled={isPlaying}
+                      />
+                      <div className="text-sm text-muted-foreground">
+                        Number of consecutive sessions above threshold before increasing level
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Advance Progress indicator */}
+                  <div className="mt-4 p-3 bg-muted/30 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Advance Status:</div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            Number(settings.advanceCount || 0) >= Number(settings.thresholdAdvanceSessions || 1)
+                              ? 'bg-blue-500'
+                              : Number(settings.advanceCount || 0) >= Number(settings.thresholdAdvanceSessions || 1) / 2
+                                ? 'bg-blue-400'
+                                : 'bg-blue-300'
+                          }`}
+                          style={{
+                            width: `${Math.min(100, Number(settings.advanceCount || 0) / Number(settings.thresholdAdvanceSessions || 1) * 100)}%`
+                          }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {Number(settings.advanceCount || 0)}/{Number(settings.thresholdAdvanceSessions || 1)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {Number(settings.advanceCount || 0) > 0 ?
+                        `${Number(settings.advanceCount)} consecutive session${Number(settings.advanceCount) !== 1 ? 's' : ''} above threshold` :
+                        'No consecutive sessions above threshold'}
+                    </div>
+                  </div>
+
+                  <div className="form-group mt-4">
+                    <label className="form-label">Fallback Threshold (%)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={settings.thresholdFallback || 50}
+                        onChange={e => handleChange('thresholdFallback', Math.max(0, Math.min(settings.thresholdAdvance - 5, parseInt(e.target.value))))}
+                        min="0"
+                        max={settings.thresholdAdvance ? settings.thresholdAdvance - 5 : 75}
+                        className="form-input w-20"
+                        disabled={isPlaying}
+                      />
+                      <div className="text-sm text-muted-foreground">
+                        Decrease level when score is below this threshold
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="form-group mt-4">
+                    <label className="form-label">Fallback Sessions</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={settings.thresholdFallbackSessions || 3}
+                        onChange={e => handleChange('thresholdFallbackSessions', Math.max(1, parseInt(e.target.value)))}
+                        min="1"
+                        max="10"
+                        className="form-input w-20"
+                        disabled={isPlaying}
+                      />
+                      <div className="text-sm text-muted-foreground">
+                        Number of consecutive sessions below threshold before decreasing level
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Fallback Progress indicator */}
+                  <div className="mt-4 p-3 bg-muted/30 rounded-lg">
+                    <div className="text-sm font-medium mb-2">Fallback Status:</div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            Number(settings.progressCount || 0) >= Number(settings.thresholdFallbackSessions || 3) - 1
+                              ? 'bg-red-500'
+                              : Number(settings.progressCount || 0) >= Number(settings.thresholdFallbackSessions || 3) / 2
+                                ? 'bg-amber-500'
+                                : 'bg-green-500'
+                          }`}
+                          style={{
+                            width: `${Math.min(100, Number(settings.progressCount || 0) / Number(settings.thresholdFallbackSessions || 3) * 100)}%`
+                          }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {Number(settings.progressCount || 0)}/{Number(settings.thresholdFallbackSessions || 3)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {Number(settings.progressCount || 0) > 0 ?
+                        `${Number(settings.progressCount)} consecutive session${Number(settings.progressCount) !== 1 ? 's' : ''} below threshold` :
+                        'No consecutive sessions below threshold'}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </SettingsGroup>
 
