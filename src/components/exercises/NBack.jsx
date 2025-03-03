@@ -738,6 +738,7 @@ export default function NBack() {
                         isActive={true}
                         number={current?.number}
                         shape={current?.shape}
+                        positionEnabled={settings.stimuli.position}
                       />
                       <OrbitControls
                         enableZoom={false}
@@ -890,6 +891,7 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
                           isActive={true}
                           number={current?.number}
                           shape={current?.shape}
+                          positionEnabled={settings.stimuli.position}
                         />
                         <OrbitControls
                           enableZoom={false}
@@ -904,6 +906,7 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
                           color={current?.color || '#3498db'}
                           number={current?.number}
                           shape={current?.shape}
+                          positionEnabled={settings.stimuli.position}
                         />
                       </div>
                     )}
