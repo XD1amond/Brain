@@ -31,6 +31,7 @@ export default function NBack() {
   const [focusMode, setFocusMode] = useState(false);
   const [settings, setSettings] = useLocalStorage('nback-settings', {
     is3D: false,
+    use3DShapes: true, // New setting for 3D shapes when in 3D mode
     nBack: 1,
     useIndividualNBacks: false,
     individualNBacks: {
@@ -40,7 +41,7 @@ export default function NBack() {
       color: 0,
       shape: 0
     },
-    shapeCount: 2,
+    shapeCount: 6,
     displayDuration: 3000,
     randomizeDisplayDuration: false,
     displayDurationMin: 2000,
@@ -739,6 +740,7 @@ export default function NBack() {
                         number={current?.number}
                         shape={current?.shape}
                         positionEnabled={settings.stimuli.position}
+                        use3DShapes={settings.use3DShapes}
                       />
                       <OrbitControls
                         enableZoom={false}
@@ -892,6 +894,7 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
                           number={current?.number}
                           shape={current?.shape}
                           positionEnabled={settings.stimuli.position}
+                          use3DShapes={settings.use3DShapes}
                         />
                         <OrbitControls
                           enableZoom={false}

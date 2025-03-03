@@ -1,6 +1,7 @@
-import { Html } from '@react-three/drei';
+import { Html, Sphere, Cone, Box, Cylinder, Text3D, Center, Edges } from '@react-three/drei';
 import { cn } from '@/lib/utils';
 
+// 2D Shape component for the 2D grid
 function Shape({ type, size = 80 }) {
   if (type === 'circle') {
     return (
@@ -41,6 +42,139 @@ function Shape({ type, size = 80 }) {
   );
 }
 
+// Create a polyhedron with the given number of sides
+function createPolyhedron(sides) {
+  // For simple shapes, we can use predefined geometries
+  if (sides === 3) {
+    // Tetrahedron (4 triangular faces)
+    return (
+      <mesh>
+        <tetrahedronGeometry args={[0.9, 0]} />
+      </mesh>
+    );
+  } else if (sides === 4) {
+    // Cube (6 square faces)
+    return (
+      <mesh>
+        <boxGeometry args={[1.2, 1.2, 1.2]} />
+      </mesh>
+    );
+  } else if (sides === 8) {
+    // Octahedron (8 triangular faces)
+    return (
+      <mesh>
+        <octahedronGeometry args={[0.9, 0]} />
+      </mesh>
+    );
+  } else if (sides === 20) {
+    // Icosahedron (20 triangular faces)
+    return (
+      <mesh>
+        <icosahedronGeometry args={[0.9, 0]} />
+      </mesh>
+    );
+  } else {
+    // For other shapes, use a cylinder with the appropriate number of sides
+    return (
+      <mesh>
+        <cylinderGeometry args={[0.8, 0.8, 1.2, sides]} />
+      </mesh>
+    );
+  }
+}
+
+// 3D Shape component for the 3D grid
+function Shape3D({ type, color, number }) {
+  // Create a component for the number in the center
+  const NumberDisplay = () => (
+    <Html position={[0, 0, 0]} center distanceFactor={0.5}>
+      <div className="font-bold text-9xl text-white" style={{
+        textShadow: '0 0 5px rgba(0,0,0,0.5)',
+        pointerEvents: 'none',
+        zIndex: 1,
+        transform: 'scale(2.5)'
+      }}>
+        {number}
+      </div>
+    </Html>
+  );
+
+  // Map shape types to appropriate 3D representations
+  let shape;
+  switch (type) {
+    case 'circle': // Sphere
+      shape = (
+        <mesh>
+          <sphereGeometry args={[0.9, 32, 32]} />
+          <meshPhongMaterial color={color} opacity={0.9} transparent />
+          <Edges color="white" threshold={15} scale={1.02} />
+        </mesh>
+      );
+      break;
+    case 'triangle': // Pyramid (Cone with 3 segments)
+      shape = (
+        <Cone args={[0.9, 1.4, 3]} position={[0, 0, 0]}>
+          <meshPhongMaterial color={color} opacity={0.9} transparent />
+          <Edges color="white" threshold={15} scale={1.02} />
+        </Cone>
+      );
+      break;
+    case 'square': // Cube
+      shape = (
+        <Box args={[1.2, 1.2, 1.2]}>
+          <meshPhongMaterial color={color} opacity={0.9} transparent />
+          <Edges color="white" threshold={15} scale={1.02} />
+        </Box>
+      );
+      break;
+    case 'pentagon': // Dodecahedron (12 pentagonal faces)
+      shape = (
+        <mesh>
+          <dodecahedronGeometry args={[0.9, 0]} />
+          <meshPhongMaterial color={color} opacity={0.9} transparent />
+          <Edges color="white" threshold={15} scale={1.02} />
+        </mesh>
+      );
+      break;
+    case 'hexagon': // Icosahedron (20 triangular faces)
+      shape = (
+        <mesh>
+          <icosahedronGeometry args={[0.9, 0]} />
+          <meshPhongMaterial color={color} opacity={0.9} transparent />
+          <Edges color="white" threshold={15} scale={1.02} />
+        </mesh>
+      );
+      break;
+    case 'heptagon': // Custom polyhedron
+      shape = (
+        <mesh>
+          <dodecahedronGeometry args={[0.9, 1]} />
+          <meshPhongMaterial color={color} opacity={0.9} transparent />
+          <Edges color="white" threshold={15} scale={1.02} />
+        </mesh>
+      );
+      break;
+    case 'octagon': // Octahedron (8 triangular faces)
+      shape = (
+        <mesh>
+          <octahedronGeometry args={[0.9, 0]} />
+          <meshPhongMaterial color={color} opacity={0.9} transparent />
+          <Edges color="white" threshold={15} scale={1.02} />
+        </mesh>
+      );
+      break;
+    default:
+      return null;
+  }
+
+  return (
+    <group>
+      {shape}
+      {number && <NumberDisplay />}
+    </group>
+  );
+}
+
 function CubeFace({ position, rotation, color, number, shape, isActive }) {
   return (
     <group position={position} rotation={rotation}>
@@ -60,7 +194,8 @@ function CubeFace({ position, rotation, color, number, shape, isActive }) {
   );
 }
 
-export function Grid3D({ position, color, isActive, number, shape, positionEnabled }) {
+export function Grid3D({ position, color, isActive, number, shape, positionEnabled, use3DShapes = true }) {
+
   // If position isn't selected in settings, display a single cube
   if (!positionEnabled) {
     // Create a fake position to render a single inactive cube
@@ -72,106 +207,24 @@ export function Grid3D({ position, color, isActive, number, shape, positionEnabl
           <boxGeometry args={[1.8, 1.8, 1.8]} />
           <meshPhongMaterial
             color={'#ffffff'}
-            opacity={0.1}
+            opacity={0.2}
             transparent={true}
             depthWrite={false}
           />
         </mesh>
         
-        {/* Only render CubeFaces if there's actual content to display */}
+        {/* Only render content if there's actual content to display */}
         {(number || shape) && (
           <>
-            {/* Front face */}
-            <CubeFace
-              position={[0, 0, 0.91]}
-              rotation={[0, 0, 0]}
-              color={color}
-              number={number}
-              shape={shape}
-              isActive={isActive}
-            />
+            {/* 3D shape in the center if shape is specified and use3DShapes is true */}
+            {shape && use3DShapes && (
+              <group>
+                <Shape3D type={shape} color={color} number={number} />
+              </group>
+            )}
 
-            {/* Back face */}
-            <CubeFace
-              position={[0, 0, -0.91]}
-              rotation={[0, Math.PI, 0]}
-              color={color}
-              number={number}
-              shape={shape}
-              isActive={isActive}
-            />
-
-            {/* Right face */}
-            <CubeFace
-              position={[0.91, 0, 0]}
-              rotation={[0, Math.PI / 2, 0]}
-              color={color}
-              number={number}
-              shape={shape}
-              isActive={isActive}
-            />
-
-            {/* Left face */}
-            <CubeFace
-              position={[-0.91, 0, 0]}
-              rotation={[0, -Math.PI / 2, 0]}
-              color={color}
-              number={number}
-              shape={shape}
-              isActive={isActive}
-            />
-
-            {/* Top face */}
-            <CubeFace
-              position={[0, 0.91, 0]}
-              rotation={[-Math.PI / 2, 0, 0]}
-              color={color}
-              number={number}
-              shape={shape}
-              isActive={isActive}
-            />
-
-            {/* Bottom face */}
-            <CubeFace
-              position={[0, -0.91, 0]}
-              rotation={[Math.PI / 2, 0, 0]}
-              color={color}
-              number={number}
-              shape={shape}
-              isActive={isActive}
-            />
-          </>
-        )}
-      </group>
-    );
-  }
-  
-  // Otherwise, show the full 3D grid
-  return (
-    <group>
-      {Array(27).fill().map((_, i) => {
-        const x = (i % 3) - 1;
-        const y = Math.floor((i / 3) % 3) - 1;
-        const z = Math.floor(i / 9) - 1;
-        // Check if position exists before comparing
-        const active = position ? (
-          x === position[0] &&
-          y === position[1] &&
-          z === position[2]
-        ) : false;
-        
-        return (
-          <group key={i} position={[x * 2, y * 2, z * 2]}>
-            <mesh>
-              <boxGeometry args={[1.8, 1.8, 1.8]} />
-              <meshPhongMaterial
-                color={active ? color : '#ffffff'}
-                opacity={active ? 1 : 0.1}
-                transparent
-                depthWrite={active}
-              />
-            </mesh>
-            {active && (
+            {/* If no shape is specified or use3DShapes is false, render the cube faces with number/shape */}
+            {(!shape || !use3DShapes) && (
               <>
                 {/* Front face */}
                 <CubeFace
@@ -234,6 +287,112 @@ export function Grid3D({ position, color, isActive, number, shape, positionEnabl
                 />
               </>
             )}
+          </>
+        )}
+      </group>
+    );
+  }
+  
+  // Otherwise, show the full 3D grid
+  return (
+    <group>
+      {Array(27).fill().map((_, i) => {
+        const x = (i % 3) - 1;
+        const y = Math.floor((i / 3) % 3) - 1;
+        const z = Math.floor(i / 9) - 1;
+        // Check if position exists before comparing
+        const active = position ? (
+          x === position[0] &&
+          y === position[1] &&
+          z === position[2]
+        ) : false;
+        
+        return (
+          <group key={i} position={[x * 2, y * 2, z * 2]}>
+            <mesh>
+              <boxGeometry args={[1.8, 1.8, 1.8]} />
+              <meshPhongMaterial
+                color={'#ffffff'}
+                opacity={active ? 0.2 : 0.1}
+                transparent
+                depthWrite={false}
+              />
+            </mesh>
+            {active && (
+              <>
+                {/* 3D shape in the center if shape is specified and use3DShapes is true */}
+                {shape && use3DShapes && (
+                  <group>
+                    <Shape3D type={shape} color={color} number={number} />
+                  </group>
+                )}
+
+                {/* If no shape is specified or use3DShapes is false, render the cube faces with number/shape */}
+                {(!shape || !use3DShapes) && (
+                  <>
+                    {/* Front face */}
+                    <CubeFace
+                      position={[0, 0, 0.91]}
+                      rotation={[0, 0, 0]}
+                      color={color}
+                      number={number}
+                      shape={shape}
+                      isActive={isActive}
+                    />
+
+                    {/* Back face */}
+                    <CubeFace
+                      position={[0, 0, -0.91]}
+                      rotation={[0, Math.PI, 0]}
+                      color={color}
+                      number={number}
+                      shape={shape}
+                      isActive={isActive}
+                    />
+
+                    {/* Right face */}
+                    <CubeFace
+                      position={[0.91, 0, 0]}
+                      rotation={[0, Math.PI / 2, 0]}
+                      color={color}
+                      number={number}
+                      shape={shape}
+                      isActive={isActive}
+                    />
+
+                    {/* Left face */}
+                    <CubeFace
+                      position={[-0.91, 0, 0]}
+                      rotation={[0, -Math.PI / 2, 0]}
+                      color={color}
+                      number={number}
+                      shape={shape}
+                      isActive={isActive}
+                    />
+
+                    {/* Top face */}
+                    <CubeFace
+                      position={[0, 0.91, 0]}
+                      rotation={[-Math.PI / 2, 0, 0]}
+                      color={color}
+                      number={number}
+                      shape={shape}
+                      isActive={isActive}
+                    />
+
+                    {/* Bottom face */}
+                    <CubeFace
+                      position={[0, -0.91, 0]}
+                      rotation={[Math.PI / 2, 0, 0]}
+                      color={color}
+                      number={number}
+                      shape={shape}
+                      isActive={isActive}
+                    />
+                  </>
+                )}
+              </>
+            )}
           </group>
         );
       })}
@@ -253,7 +412,11 @@ export function Grid2D({ position, color, number, shape, forced, positionEnabled
         )}
         <div className="w-[300px] h-[300px] mx-auto flex items-center justify-center">
           <div
-            className="rounded-lg transition-all duration-300 flex items-center justify-center text-2xl w-[150px] h-[150px] bg-card dark:bg-muted border border-border text-transparent"
+            className={cn(
+              "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl w-[150px] h-[150px]",
+              (number || shape) ? "bg-[color:var(--active-color)] text-white" : "bg-card dark:bg-muted border border-border text-transparent"
+            )}
+            style={{ '--active-color': color }}
           >
             {/* Only show content if there's actual content to display */}
             {(number || shape) && (

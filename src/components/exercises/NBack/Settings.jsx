@@ -156,16 +156,19 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
             </label>
 
             {settings.is3D && (
-              <label className="flex items-center space-x-3 p-3 ml-6 rounded-lg hover:bg-muted/50 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={settings.autoRotate}
-                  onChange={e => handleChange('autoRotate', e.target.checked)}
-                  className="form-checkbox"
-                  disabled={isPlaying}
-                />
-                <span>Auto-rotate</span>
-              </label>
+              <div className="space-y-2 ml-6">
+                <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={settings.autoRotate}
+                    onChange={e => handleChange('autoRotate', e.target.checked)}
+                    className="form-checkbox"
+                    disabled={isPlaying}
+                  />
+                  <span>Auto-rotate</span>
+                </label>
+                
+              </div>
             )}
           </div>
         </SettingsGroup>
@@ -214,20 +217,35 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                 )}
 
                 {key === 'shape' && settings.stimuli[key] && (
-                  <div className="mt-2 ml-8 p-3 rounded-lg bg-muted/30">
-                    <label className="form-label block mb-2 text-sm font-medium">Number of Shapes:</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="range"
-                        min="2"
-                        max="6"
-                        value={settings.shapeCount}
-                        onChange={e => handleChange('shapeCount', parseInt(e.target.value))}
-                        className="form-range w-32"
-                        disabled={isPlaying}
-                      />
-                      <span className="text-sm font-medium">{settings.shapeCount}</span>
+                  <div className="mt-2 ml-8 p-3 rounded-lg bg-muted/30 space-y-4">
+                    <div>
+                      <label className="form-label block mb-2 text-sm font-medium">Number of Shapes:</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min="2"
+                          max="6"
+                          value={settings.shapeCount}
+                          onChange={e => handleChange('shapeCount', parseInt(e.target.value))}
+                          className="form-range w-32"
+                          disabled={isPlaying}
+                        />
+                        <span className="text-sm font-medium">{settings.shapeCount}</span>
+                      </div>
                     </div>
+                    
+                    {settings.is3D && (
+                      <label className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={settings.use3DShapes}
+                          onChange={e => handleChange('use3DShapes', e.target.checked)}
+                          className="form-checkbox"
+                          disabled={isPlaying}
+                        />
+                        <span className="text-sm">Use 3D Shapes</span>
+                      </label>
+                    )}
                   </div>
                 )}
               </div>
