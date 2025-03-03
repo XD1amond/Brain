@@ -160,8 +160,8 @@ export default function NBack() {
       }
     }
 
-    // Always generate a number for display in shapes or when number stimulus is enabled
-    if (settings.stimuli.number || settings.stimuli.shape) {
+    // Generate a number only when number stimulus is enabled
+    if (settings.stimuli.number) {
       stimulus.number = Math.floor(Math.random() * 9) + 1;
     }
     

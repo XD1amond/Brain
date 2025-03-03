@@ -186,7 +186,7 @@ export function Grid2D({ position, color, number, shape, forced }) {
                       <Shape type={shape} />
                     </div>
                   )}
-                  <div className="relative z-10 font-bold text-3xl" style={{ color: color }}>
+                  <div className="relative z-10 font-bold text-3xl" style={{ color: "white" }}>
                     {number}
                   </div>
                 </div>
