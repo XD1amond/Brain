@@ -184,6 +184,7 @@ function HistoryItem({ session, index }) {
                             isActive={true}
                             number={session.stimuli[currentTurn]?.number}
                             shape={session.stimuli[currentTurn]?.shape}
+                            positionEnabled={session.settings.activeStimuli.includes('position')}
                           />
                           <OrbitControls
                             enableZoom={false}
@@ -198,6 +199,7 @@ function HistoryItem({ session, index }) {
                         color={session.stimuli[currentTurn]?.color || '#3498db'}
                         number={session.stimuli[currentTurn]?.number}
                         shape={session.stimuli[currentTurn]?.shape}
+                        positionEnabled={session.settings.activeStimuli.includes('position')}
                       />
                     )}
                   </div>
