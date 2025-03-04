@@ -876,6 +876,7 @@ export default function NBack() {
                         color={current?.color || '#3498db'}
                         number={current?.number}
                         shape={current?.shape}
+                        positionEnabled={settings.stimuli.position}
                       />
                     </div>
                   </div>
