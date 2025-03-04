@@ -80,7 +80,7 @@ export default function NBack() {
     focusElements: {
       title: false,
       settings: false,
-      score: false,
+      score: true,
       history: false,
       stimuliButtons: true,
       turnCounter: true
