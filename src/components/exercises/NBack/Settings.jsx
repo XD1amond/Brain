@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { SettingTooltip } from '@/components/SettingTooltip';
 
 function KeybindInput({ label, value, onChange, defaultValue }) {
   const [isBinding, setIsBinding] = useState(false);
@@ -105,7 +106,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                 className="form-checkbox"
                 disabled={isPlaying}
               />
-              <span>3D Grid</span>
+              <span>3D Grid <SettingTooltip text="Displays the grid in 3D space, allowing for rotation and depth perception." /></span>
             </label>
 
             {settings.is3D && (
@@ -149,7 +150,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                 className="form-checkbox"
                 disabled={isPlaying}
               />
-              <span>Individual N-Back Levels</span>
+              <span>Individual N-Back Levels <SettingTooltip text="Allows setting different N-Back levels for each stimulus type (position, audio, number, color, shape)." /></span>
             </label>
 
             {settings.useIndividualNBacks && (
@@ -187,13 +188,13 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                   className="form-checkbox"
                   disabled={isPlaying}
                 />
-                <span>Auto Progression</span>
+                <span>Auto Progression <SettingTooltip text="Automatically progresses/decreases the nback level after it reaches the advance/fallback threshold respectivelly." /></span>
               </label>
 
               {settings.autoProgressionEnabled && (
                 <div className="space-y-4 ml-6 mt-2">
                   <div className="form-group">
-                    <label className="form-label">Advance Threshold (%)</label>
+                    <label className="form-label">Advance Threshold (%) <SettingTooltip text="Increase level when score is above this threshold." /></label>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -205,14 +206,11 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                         disabled={isPlaying || !advancedMode}
                         readOnly={!advancedMode}
                       />
-                      <div className="text-sm text-muted-foreground">
-                        Increase level when score is above this threshold
-                      </div>
                     </div>
                   </div>
 
                   <div className="form-group mt-4">
-                    <label className="form-label">Advance Sessions</label>
+                    <label className="form-label">Advance Sessions <SettingTooltip text="Number of consecutive sessions above threshold before increasing level." /></label>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -224,9 +222,6 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                         disabled={isPlaying || !advancedMode}
                         readOnly={!advancedMode}
                       />
-                      <div className="text-sm text-muted-foreground">
-                        Number of consecutive sessions above threshold before increasing level
-                      </div>
                     </div>
                   </div>
                   
@@ -260,7 +255,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                   </div>
 
                   <div className="form-group mt-4">
-                    <label className="form-label">Fallback Threshold (%)</label>
+                    <label className="form-label">Fallback Threshold (%) <SettingTooltip text="Decrease level when score is below this threshold." /></label>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -272,14 +267,11 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                         disabled={isPlaying || !advancedMode}
                         readOnly={!advancedMode}
                       />
-                      <div className="text-sm text-muted-foreground">
-                        Decrease level when score is below this threshold
-                      </div>
                     </div>
                   </div>
                   
                   <div className="form-group mt-4">
-                    <label className="form-label">Fallback Sessions</label>
+                    <label className="form-label">Fallback Sessions <SettingTooltip text="Number of consecutive sessions below threshold before decreasing level." /></label>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -291,9 +283,6 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                         disabled={isPlaying || !advancedMode}
                         readOnly={!advancedMode}
                       />
-                      <div className="text-sm text-muted-foreground">
-                        Number of consecutive sessions below threshold before decreasing level
-                      </div>
                     </div>
                   </div>
                   
@@ -415,7 +404,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
           <SettingsGroup title="Timing" defaultExpanded={false}>
             <div className="space-y-4">
               <div className="form-group">
-                <label className="form-label">Display Duration (ms)</label>
+                <label className="form-label">Display Duration (ms) <SettingTooltip text="How long each stimulus is displayed on the screen before disappearing." /></label>
                 {settings.randomizeDisplayDuration ? (
                   <div className="flex items-center gap-2">
                     <input
@@ -491,7 +480,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Delay Between Turns (ms)</label>
+                <label className="form-label">Delay Between Turns (ms) <SettingTooltip text="The time interval between consecutive stimuli presentations." /></label>
                 {settings.randomizeDelayDuration ? (
                   <div className="flex items-center gap-2">
                     <input
@@ -724,13 +713,13 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                 className="form-checkbox"
                 disabled={isPlaying}
               />
-              <span>Advanced Mode</span>
+              <span>Advanced Mode <SettingTooltip text="Enables additional settings for fine-tuning the N-Back exercise, including timing controls, match chances, and display options." /></span>
             </label>
             
             {advancedMode && (
               <>
                 <div className="form-group">
-                  <label className="form-label">Guaranteed Matches Chance</label>
+                  <label className="form-label">Guaranteed Matches Chance <SettingTooltip text="The probability that a stimulus will match the one from N positions back, creating a match that should be identified." /></label>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
@@ -746,7 +735,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                   </div>
                 </div>
                 <div className="form-group mt-4">
-                  <label className="form-label">Interference Chance</label>
+                  <label className="form-label">Interference Chance <SettingTooltip text="The probability that a stimulus will match one from a position other than N back, creating a potential false positive." /></label>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
