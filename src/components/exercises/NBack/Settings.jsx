@@ -85,6 +85,9 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
     }));
   };
 
+  // Check if advanced mode is enabled
+  const advancedMode = settings.advancedMode || false;
+
   return (
     <div className="space-y-6 bg-card rounded-xl p-6 shadow-lg">
       <div className="flex items-center justify-between">
@@ -199,7 +202,8 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                         min="50"
                         max="100"
                         className="form-input w-20"
-                        disabled={isPlaying}
+                        disabled={isPlaying || !advancedMode}
+                        readOnly={!advancedMode}
                       />
                       <div className="text-sm text-muted-foreground">
                         Increase level when score is above this threshold
@@ -217,7 +221,8 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                         min="1"
                         max="10"
                         className="form-input w-20"
-                        disabled={isPlaying}
+                        disabled={isPlaying || !advancedMode}
+                        readOnly={!advancedMode}
                       />
                       <div className="text-sm text-muted-foreground">
                         Number of consecutive sessions above threshold before increasing level
@@ -264,7 +269,8 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                         min="0"
                         max={settings.thresholdAdvance ? settings.thresholdAdvance - 5 : 75}
                         className="form-input w-20"
-                        disabled={isPlaying}
+                        disabled={isPlaying || !advancedMode}
+                        readOnly={!advancedMode}
                       />
                       <div className="text-sm text-muted-foreground">
                         Decrease level when score is below this threshold
@@ -282,7 +288,8 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                         min="1"
                         max="10"
                         className="form-input w-20"
-                        disabled={isPlaying}
+                        disabled={isPlaying || !advancedMode}
+                        readOnly={!advancedMode}
                       />
                       <div className="text-sm text-muted-foreground">
                         Number of consecutive sessions below threshold before decreasing level
@@ -404,166 +411,168 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
           </div>
         </SettingsGroup>
 
-        <SettingsGroup title="Timing" defaultExpanded={false}>
-          <div className="space-y-4">
-            <div className="form-group">
-              <label className="form-label">Display Duration (ms)</label>
-              {settings.randomizeDisplayDuration ? (
-                <div className="flex items-center gap-2">
+        {advancedMode && (
+          <SettingsGroup title="Timing" defaultExpanded={false}>
+            <div className="space-y-4">
+              <div className="form-group">
+                <label className="form-label">Display Duration (ms)</label>
+                {settings.randomizeDisplayDuration ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={settings.displayDurationMin === "" ? "" : settings.displayDurationMin}
+                      onChange={e => {
+                        if (e.target.value === "") {
+                          handleChange('displayDurationMin', "");
+                        } else {
+                          handleChange('displayDurationMin', Math.max(0, parseInt(e.target.value)));
+                        }
+                      }}
+                      onBlur={e => {
+                        if(e.target.value === "") {
+                          handleChange('displayDurationMin', 2000);
+                        }
+                      }}
+                      {...(settings.displayDurationMin === "" ? {} : { min: "0" })}
+                      className="form-input w-24"
+                      disabled={isPlaying}
+                    />
+                    <span>to</span>
+                    <input
+                      type="number"
+                      value={settings.displayDurationMax === "" ? "" : settings.displayDurationMax}
+                      onChange={e => {
+                        if (e.target.value === "") {
+                          handleChange('displayDurationMax', "");
+                        } else {
+                          handleChange('displayDurationMax', Math.max(0, parseInt(e.target.value)));
+                        }
+                      }}
+                      onBlur={e => {
+                        if(e.target.value === "") {
+                          handleChange('displayDurationMax', 3000);
+                        }
+                      }}
+                      {...(settings.displayDurationMax === "" ? {} : { min: "0" })}
+                      className="form-input w-24"
+                      disabled={isPlaying}
+                    />
+                    <span className="text-sm text-muted-foreground">milliseconds</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={settings.displayDuration}
+                      onChange={e => handleChange('displayDuration', e.target.value)}
+                      onBlur={e => {
+                        if (e.target.value === "" || isNaN(parseInt(e.target.value))) {
+                          handleChange('displayDuration', 3000);
+                        } else {
+                          handleChange('displayDuration', parseInt(e.target.value));
+                        }
+                      }}
+                      className="form-input w-24"
+                      disabled={isPlaying}
+                    />
+                    <span className="text-sm text-muted-foreground">milliseconds</span>
+                  </div>
+                )}
+                <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors mt-2">
                   <input
-                    type="number"
-                    value={settings.displayDurationMin === "" ? "" : settings.displayDurationMin}
-                    onChange={e => {
-                      if (e.target.value === "") {
-                        handleChange('displayDurationMin', "");
-                      } else {
-                        handleChange('displayDurationMin', Math.max(0, parseInt(e.target.value)));
-                      }
-                    }}
-                    onBlur={e => {
-                      if(e.target.value === "") {
-                        handleChange('displayDurationMin', 2000);
-                      }
-                    }}
-                    {...(settings.displayDurationMin === "" ? {} : { min: "0" })}
-                    className="form-input w-24"
+                    type="checkbox"
+                    checked={settings.randomizeDisplayDuration || false}
+                    onChange={e => handleChange('randomizeDisplayDuration', e.target.checked)}
+                    className="form-checkbox"
                     disabled={isPlaying}
                   />
-                  <span>to</span>
-                  <input
-                    type="number"
-                    value={settings.displayDurationMax === "" ? "" : settings.displayDurationMax}
-                    onChange={e => {
-                      if (e.target.value === "") {
-                        handleChange('displayDurationMax', "");
-                      } else {
-                        handleChange('displayDurationMax', Math.max(0, parseInt(e.target.value)));
-                      }
-                    }}
-                    onBlur={e => {
-                      if(e.target.value === "") {
-                        handleChange('displayDurationMax', 3000);
-                      }
-                    }}
-                    {...(settings.displayDurationMax === "" ? {} : { min: "0" })}
-                    className="form-input w-24"
-                    disabled={isPlaying}
-                  />
-                  <span className="text-sm text-muted-foreground">milliseconds</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={settings.displayDuration}
-                    onChange={e => handleChange('displayDuration', e.target.value)}
-                    onBlur={e => {
-                      if (e.target.value === "" || isNaN(parseInt(e.target.value))) {
-                        handleChange('displayDuration', 3000);
-                      } else {
-                        handleChange('displayDuration', parseInt(e.target.value));
-                      }
-                    }}
-                    className="form-input w-24"
-                    disabled={isPlaying}
-                  />
-                  <span className="text-sm text-muted-foreground">milliseconds</span>
-                </div>
-              )}
-              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors mt-2">
-                <input
-                  type="checkbox"
-                  checked={settings.randomizeDisplayDuration || false}
-                  onChange={e => handleChange('randomizeDisplayDuration', e.target.checked)}
-                  className="form-checkbox"
-                  disabled={isPlaying}
-                />
-                <span>Randomize Display Duration</span>
-              </label>
-            </div>
+                  <span>Randomize Display Duration</span>
+                </label>
+              </div>
 
-            <div className="form-group">
-              <label className="form-label">Delay Between Turns (ms)</label>
-              {settings.randomizeDelayDuration ? (
-                <div className="flex items-center gap-2">
+              <div className="form-group">
+                <label className="form-label">Delay Between Turns (ms)</label>
+                {settings.randomizeDelayDuration ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={settings.delayDurationMin === "" ? "" : settings.delayDurationMin || 400}
+                      onChange={e => {
+                        if (e.target.value === "") {
+                          handleChange('delayDurationMin', "");
+                        } else {
+                          handleChange('delayDurationMin', Math.max(0, parseInt(e.target.value)));
+                        }
+                      }}
+                      onBlur={e => {
+                        if(e.target.value === "") {
+                          handleChange('delayDurationMin', 400);
+                        }
+                      }}
+                      className="form-input w-24"
+                      disabled={isPlaying}
+                    />
+                    <span>to</span>
+                    <input
+                      type="number"
+                      value={settings.delayDurationMax === "" ? "" : settings.delayDurationMax || 600}
+                      onChange={e => {
+                        if (e.target.value === "") {
+                          handleChange('delayDurationMax', "");
+                        } else {
+                          handleChange('delayDurationMax', Math.max(0, parseInt(e.target.value)));
+                        }
+                      }}
+                      onBlur={e => {
+                        if (e.target.value === "") {
+                          handleChange('delayDurationMax', 600);
+                        }
+                      }}
+                      className="form-input w-24"
+                      disabled={isPlaying}
+                    />
+                    <span className="text-sm text-muted-foreground">milliseconds</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={settings.delayDuration === "" ? "" : settings.delayDuration}
+                      onChange={e => {
+                        if (e.target.value === "") {
+                          handleChange('delayDuration', "");
+                        } else {
+                          handleChange('delayDuration', Math.max(0, parseInt(e.target.value)));
+                        }
+                      }}
+                      onBlur={e => {
+                        if (e.target.value === "" || isNaN(parseInt(e.target.value))) {
+                          handleChange('delayDuration', 500);
+                        }
+                      }}
+                      min="0"
+                      max="2000"
+                      step="100"
+                      className="form-input w-24"
+                      disabled={isPlaying}
+                    />
+                    <span className="text-sm text-muted-foreground">milliseconds</span>
+                  </div>
+                )}
+                <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors mt-2">
                   <input
-                    type="number"
-                    value={settings.delayDurationMin === "" ? "" : settings.delayDurationMin || 400}
-                    onChange={e => {
-                      if (e.target.value === "") {
-                        handleChange('delayDurationMin', "");
-                      } else {
-                        handleChange('delayDurationMin', Math.max(0, parseInt(e.target.value)));
-                      }
-                    }}
-                    onBlur={e => {
-                      if(e.target.value === "") {
-                        handleChange('delayDurationMin', 400);
-                      }
-                    }}
-                    className="form-input w-24"
+                    type="checkbox"
+                    checked={settings.randomizeDelayDuration || false}
+                    onChange={e => handleChange('randomizeDelayDuration', e.target.checked)}
+                    className="form-checkbox"
                     disabled={isPlaying}
                   />
-                  <span>to</span>
-                  <input
-                    type="number"
-                    value={settings.delayDurationMax === "" ? "" : settings.delayDurationMax || 600}
-                    onChange={e => {
-                      if (e.target.value === "") {
-                        handleChange('delayDurationMax', "");
-                      } else {
-                        handleChange('delayDurationMax', Math.max(0, parseInt(e.target.value)));
-                      }
-                    }}
-                    onBlur={e => {
-                      if (e.target.value === "") {
-                        handleChange('delayDurationMax', 600);
-                      }
-                    }}
-                    className="form-input w-24"
-                    disabled={isPlaying}
-                  />
-                  <span className="text-sm text-muted-foreground">milliseconds</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    value={settings.delayDuration === "" ? "" : settings.delayDuration}
-                    onChange={e => {
-                      if (e.target.value === "") {
-                        handleChange('delayDuration', "");
-                      } else {
-                        handleChange('delayDuration', Math.max(0, parseInt(e.target.value)));
-                      }
-                    }}
-                    onBlur={e => {
-                      if (e.target.value === "" || isNaN(parseInt(e.target.value))) {
-                        handleChange('delayDuration', 500);
-                      }
-                    }}
-                    min="0"
-                    max="2000"
-                    step="100"
-                    className="form-input w-24"
-                    disabled={isPlaying}
-                  />
-                  <span className="text-sm text-muted-foreground">milliseconds</span>
-                </div>
-              )}
-              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors mt-2">
-                <input
-                  type="checkbox"
-                  checked={settings.randomizeDelayDuration || false}
-                  onChange={e => handleChange('randomizeDelayDuration', e.target.checked)}
-                  className="form-checkbox"
-                  disabled={isPlaying}
-                />
-                <span>Randomize Delay Duration</span>
-              </label>
+                  <span>Randomize Delay Duration</span>
+                </label>
+              </div>
             </div>
-          </div>
-        </SettingsGroup>
+          </SettingsGroup>
+        )}
 
         <SettingsGroup title="Keybinds" defaultExpanded={false}>
           <div className="grid gap-4">
@@ -617,136 +626,155 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
           </div>
         </SettingsGroup>
 
-        <SettingsGroup title="Focus" defaultExpanded={false}>
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground mb-2">
-              Select which elements remain visible in focus mode:
+        {advancedMode && (
+          <SettingsGroup title="Focus" defaultExpanded={false}>
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground mb-2">
+                Select which elements remain visible in focus mode:
+              </div>
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={settings.focusElements?.title || false}
+                  onChange={e => handleChange('focusElements', {
+                    ...settings.focusElements || {},
+                    title: e.target.checked
+                  })}
+                  className="form-checkbox"
+                  disabled={isPlaying}
+                />
+                <span>Title</span>
+              </label>
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={settings.focusElements?.settings || false}
+                  onChange={e => handleChange('focusElements', {
+                    ...settings.focusElements || {},
+                    settings: e.target.checked
+                  })}
+                  className="form-checkbox"
+                  disabled={isPlaying}
+                />
+                <span>Settings</span>
+              </label>
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={settings.focusElements?.score || false}
+                  onChange={e => handleChange('focusElements', {
+                    ...settings.focusElements || {},
+                    score: e.target.checked
+                  })}
+                  className="form-checkbox"
+                  disabled={isPlaying}
+                />
+                <span>Score</span>
+              </label>
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={settings.focusElements?.history || false}
+                  onChange={e => handleChange('focusElements', {
+                    ...settings.focusElements || {},
+                    history: e.target.checked
+                  })}
+                  className="form-checkbox"
+                  disabled={isPlaying}
+                />
+                <span>History</span>
+              </label>
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={settings.focusElements?.stimuliButtons === undefined ? true : settings.focusElements.stimuliButtons}
+                  onChange={e => handleChange('focusElements', {
+                    ...settings.focusElements || {},
+                    stimuliButtons: e.target.checked
+                  })}
+                  className="form-checkbox"
+                  disabled={isPlaying}
+                />
+                <span>Stimuli Buttons</span>
+              </label>
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={settings.focusElements?.turnCounter === undefined ? true : settings.focusElements.turnCounter}
+                  onChange={e => handleChange('focusElements', {
+                    ...settings.focusElements || {},
+                    turnCounter: e.target.checked
+                  })}
+                  className="form-checkbox"
+                  disabled={isPlaying}
+                />
+                <span>Turn Counter</span>
+              </label>
             </div>
-            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-              <input
-                type="checkbox"
-                checked={settings.focusElements?.title || false}
-                onChange={e => handleChange('focusElements', {
-                  ...settings.focusElements || {},
-                  title: e.target.checked
-                })}
-                className="form-checkbox"
-                disabled={isPlaying}
-              />
-              <span>Title</span>
-            </label>
-            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-              <input
-                type="checkbox"
-                checked={settings.focusElements?.settings || false}
-                onChange={e => handleChange('focusElements', {
-                  ...settings.focusElements || {},
-                  settings: e.target.checked
-                })}
-                className="form-checkbox"
-                disabled={isPlaying}
-              />
-              <span>Settings</span>
-            </label>
-            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-              <input
-                type="checkbox"
-                checked={settings.focusElements?.score || false}
-                onChange={e => handleChange('focusElements', {
-                  ...settings.focusElements || {},
-                  score: e.target.checked
-                })}
-                className="form-checkbox"
-                disabled={isPlaying}
-              />
-              <span>Score</span>
-            </label>
-            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-              <input
-                type="checkbox"
-                checked={settings.focusElements?.history || false}
-                onChange={e => handleChange('focusElements', {
-                  ...settings.focusElements || {},
-                  history: e.target.checked
-                })}
-                className="form-checkbox"
-                disabled={isPlaying}
-              />
-              <span>History</span>
-            </label>
-            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-              <input
-                type="checkbox"
-                checked={settings.focusElements?.stimuliButtons === undefined ? true : settings.focusElements.stimuliButtons}
-                onChange={e => handleChange('focusElements', {
-                  ...settings.focusElements || {},
-                  stimuliButtons: e.target.checked
-                })}
-                className="form-checkbox"
-                disabled={isPlaying}
-              />
-              <span>Stimuli Buttons</span>
-            </label>
-            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-              <input
-                type="checkbox"
-                checked={settings.focusElements?.turnCounter === undefined ? true : settings.focusElements.turnCounter}
-                onChange={e => handleChange('focusElements', {
-                  ...settings.focusElements || {},
-                  turnCounter: e.target.checked
-                })}
-                className="form-checkbox"
-                disabled={isPlaying}
-              />
-              <span>Turn Counter</span>
-            </label>
-          </div>
-        </SettingsGroup>
+          </SettingsGroup>
+        )}
 
         <SettingsGroup title="Advanced" defaultExpanded={false}>
-          <div className="form-group">
-            <label className="form-label">Guaranteed Matches Chance</label>
-            <div className="flex items-center gap-2">
+          <div className="space-y-4">
+            <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
               <input
-                type="number"
-                value={settings.guaranteedMatchesChance * 100}
-                onChange={e => handleChange('guaranteedMatchesChance', Math.max(0, Math.min(100, parseFloat(e.target.value))) / 100)}
-                className="form-input w-24"
-                step="0.1"
-                min="0"
-                max="100"
+                type="checkbox"
+                checked={settings.advancedMode || false}
+                onChange={e => handleChange('advancedMode', e.target.checked)}
+                className="form-checkbox"
                 disabled={isPlaying}
               />
-              <span className="text-sm text-muted-foreground">%</span>
-            </div>
+              <span>Advanced Mode</span>
+            </label>
+            
+            {advancedMode && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Guaranteed Matches Chance</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={settings.guaranteedMatchesChance * 100}
+                      onChange={e => handleChange('guaranteedMatchesChance', Math.max(0, Math.min(100, parseFloat(e.target.value))) / 100)}
+                      className="form-input w-24"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      disabled={isPlaying}
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </div>
+                </div>
+                <div className="form-group mt-4">
+                  <label className="form-label">Interference Chance</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={settings.interferenceChance * 100}
+                      onChange={e => handleChange('interferenceChance', Math.max(0, Math.min(100, parseFloat(e.target.value))) / 100)}
+                      className="form-input w-24"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      disabled={isPlaying}
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </div>
+                </div>
+                
+                <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors mt-4">
+                  <input
+                    type="checkbox"
+                    checked={settings.disableTurnDisplay || false}
+                    onChange={e => handleChange('disableTurnDisplay', e.target.checked)}
+                    className="form-checkbox"
+                    disabled={isPlaying}
+                  />
+                  <span>Disable Turn Display</span>
+                </label>
+              </>
+            )}
           </div>
-          <div className="form-group mt-4">
-            <label className="form-label">Interference Chance</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={settings.interferenceChance * 100}
-                onChange={e => handleChange('interferenceChance', Math.max(0, Math.min(100, parseFloat(e.target.value))) / 100)}
-                className="form-input w-24"
-                step="0.1"
-                min="0"
-                max="100"
-                disabled={isPlaying}
-              />
-              <span className="text-sm text-muted-foreground">%</span>
-            </div>
-          </div>
-          
-          <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors mt-4">
-            <input
-              type="checkbox"
-              checked={settings.disableTurnDisplay || false}
-              onChange={e => handleChange('disableTurnDisplay', e.target.checked)}
-              className="form-checkbox"
-              disabled={isPlaying}
-            />
-            <span>Disable Turn Display</span>
-          </label>
         </SettingsGroup>
       </div>
     </div>
