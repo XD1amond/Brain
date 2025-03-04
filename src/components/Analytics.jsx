@@ -7,7 +7,7 @@ function LineGraph({ title, color = "primary", maxValue = 100, unit = "", select
   // Load analytics from individual storages
   const [rrtAnalytics] = useLocalStorage('rrt_analytics', []);
   const [motAnalytics] = useLocalStorage('mot_analytics', []);
-  const [nbackAnalytics] = useLocalStorage('nback_analytics', []);
+  const [nbackAnalytics] = useLocalStorage('nback_history', []);
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
   // Get analytics based on exercise type and filters
@@ -528,7 +528,7 @@ function TimeGraph({ selectedPeriod }) {
   const [selectedExercise, setSelectedExercise] = useState('total');
   const [rrtAnalytics] = useLocalStorage('rrt_analytics', []);
   const [motAnalytics] = useLocalStorage('mot_analytics', []);
-  const [nbackAnalytics] = useLocalStorage('nback_analytics', []);
+  const [nbackAnalytics] = useLocalStorage('nback_history', []);
   const exercises = [
     { id: 'total', name: 'Total' },
     { id: 'rrt', name: 'RRT' },
@@ -616,7 +616,7 @@ const formatDuration = (minutes) => {
 function GeneralContent({ selectedPeriod }) {
   const [rrtAnalytics] = useLocalStorage('rrt_analytics', []);
   const [motAnalytics] = useLocalStorage('mot_analytics', []);
-  const [nbackAnalytics] = useLocalStorage('nback_analytics', []);
+  const [nbackAnalytics] = useLocalStorage('nback_history', []);
 
   // Get start and end dates based on selected period
   const now = new Date();
