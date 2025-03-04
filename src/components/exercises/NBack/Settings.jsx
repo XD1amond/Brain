@@ -109,21 +109,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
               <span>3D Grid <SettingTooltip text="Displays the grid in 3D space, allowing for rotation and depth perception." /></span>
             </label>
 
-            {settings.is3D && (
-              <div className="space-y-2 ml-6">
-                <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={settings.autoRotate}
-                    onChange={e => handleChange('autoRotate', e.target.checked)}
-                    className="form-checkbox"
-                    disabled={isPlaying}
-                  />
-                  <span>Auto-rotate</span>
-                </label>
-                
-              </div>
-            )}
+            {/* 3D settings moved to Rotation section */}
           </div>
         </SettingsGroup>
 
@@ -699,6 +685,94 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                 />
                 <span>Turn Counter</span>
               </label>
+            </div>
+          </SettingsGroup>
+        )}
+
+        {advancedMode && settings.is3D && (
+          <SettingsGroup title="Rotation" defaultExpanded={false}>
+            <div className="space-y-4">
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={settings.autoRotate}
+                  onChange={e => handleChange('autoRotate', e.target.checked)}
+                  className="form-checkbox"
+                  disabled={isPlaying}
+                />
+                <span>Auto-rotate <SettingTooltip text="Automatically rotate the 3D grid to provide different perspectives." /></span>
+              </label>
+              
+              {settings.autoRotate && (
+                <div className="space-y-4 ml-6 mt-2">
+                  <div className="form-group">
+                    <label className="form-label">X-Axis Rotation Speed <SettingTooltip text="Controls rotation around the X axis (horizontal)" /></label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="-10"
+                        max="10"
+                        step="0.1"
+                        value={settings.rotationSpeedX !== undefined ? settings.rotationSpeedX : 1}
+                        onChange={e => {
+                          const value = e.target.value === "" ? 0 : parseFloat(e.target.value);
+                          handleChange('rotationSpeedX', isNaN(value) ? 0 : value);
+                        }}
+                        className="form-input w-24"
+                        disabled={isPlaying}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">Y-Axis Rotation Speed <SettingTooltip text="Controls rotation around the Y axis (vertical)" /></label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="-10"
+                        max="10"
+                        step="0.1"
+                        value={settings.rotationSpeedY !== undefined ? settings.rotationSpeedY : 1}
+                        onChange={e => {
+                          const value = e.target.value === "" ? 0 : parseFloat(e.target.value);
+                          handleChange('rotationSpeedY', isNaN(value) ? 0 : value);
+                        }}
+                        className="form-input w-24"
+                        disabled={isPlaying}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">Z-Axis Rotation Speed <SettingTooltip text="Controls rotation around the Z axis (depth)" /></label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="-10"
+                        max="10"
+                        step="0.1"
+                        value={settings.rotationSpeedZ !== undefined ? settings.rotationSpeedZ : 1}
+                        onChange={e => {
+                          const value = e.target.value === "" ? 0 : parseFloat(e.target.value);
+                          handleChange('rotationSpeedZ', isNaN(value) ? 0 : value);
+                        }}
+                        className="form-input w-24"
+                        disabled={isPlaying}
+                      />
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      handleChange('resetRotation', Date.now());
+                    }}
+                    className="mt-4 w-full py-2 px-4 rounded-md font-medium transition-colors bg-muted hover:bg-muted/80"
+                    disabled={isPlaying}
+                  >
+                    Reset Axes
+                  </button>
+                </div>
+              )}
             </div>
           </SettingsGroup>
         )}

@@ -60,6 +60,9 @@ export default function NBack() {
     delayDurationMin: 400,
     delayDurationMax: 600,
     autoRotate: false,
+    rotationSpeedX: 1,
+    rotationSpeedY: 1,
+    rotationSpeedZ: 1,
     audioTypes: {
       tone: false,
       letters: true,
@@ -123,6 +126,38 @@ export default function NBack() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const audioContext = useRef(null);
+  const [rotationTime, setRotationTime] = useState(0);
+  const [rotationOffset, setRotationOffset] = useState(0);
+  const [cubeRotation, setCubeRotation] = useState([0, 0, 0]);
+  
+  // Reset rotation when the reset button is clicked
+  useEffect(() => {
+    if (settings.resetRotation) {
+      setCubeRotation([0, 0, 0]);
+      setRotationOffset(Date.now() * 0.001);
+    }
+  }, [settings.resetRotation]);
+  
+  // Update rotation offset when auto-rotate is enabled or rotation speeds change
+  useEffect(() => {
+    setRotationOffset(Date.now() * 0.001);
+  }, [settings.autoRotate, settings.rotationSpeedX, settings.rotationSpeedY, settings.rotationSpeedZ]);
+  
+  // Animation loop for smooth rotation
+  useEffect(() => {
+    if (!settings.is3D || !settings.autoRotate) return;
+    
+    let animationFrameId;
+    const animate = () => {
+      setRotationTime((Date.now() * 0.001) - rotationOffset);
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    
+    animationFrameId = requestAnimationFrame(animate);
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [settings.is3D, settings.autoRotate, rotationOffset]);
 
   const generateStimulus = useCallback(() => {
     const stimulus = {};
@@ -682,6 +717,9 @@ export default function NBack() {
             useIndividualNBacks: settings.useIndividualNBacks,
             individualNBacks: settings.useIndividualNBacks ? settings.individualNBacks : null,
             autoRotate: settings.autoRotate,
+            rotationSpeedX: settings.rotationSpeedX !== undefined ? settings.rotationSpeedX : 1,
+            rotationSpeedY: settings.rotationSpeedY !== undefined ? settings.rotationSpeedY : 1,
+            rotationSpeedZ: settings.rotationSpeedZ !== undefined ? settings.rotationSpeedZ : 1,
             activeStimuli,
             audioTypes: activeAudioTypes,
             displayDuration: settings.displayDuration,
@@ -852,19 +890,24 @@ export default function NBack() {
                     <Canvas camera={{ position: [6, 6, 6], fov: 55 }}>
                       <ambientLight intensity={0.7} />
                       <pointLight position={[10, 10, 10]} intensity={1.2} />
-                      <Grid3D
-                        position={current?.position}
-                        color={current?.color || '#ffffff'}
-                        isActive={true}
-                        number={current?.number}
-                        shape={current?.shape}
-                        positionEnabled={settings.stimuli.position}
-                        use3DShapes={settings.use3DShapes}
-                      />
+                      <group rotation={[
+                        cubeRotation[0] + (settings.autoRotate ? (rotationTime * (settings.rotationSpeedY !== undefined ? settings.rotationSpeedY : 1) * 0.1) % (2 * Math.PI) : 0),
+                        cubeRotation[1] + (settings.autoRotate ? (rotationTime * (settings.rotationSpeedX !== undefined ? settings.rotationSpeedX : 1) * 0.1) % (2 * Math.PI) : 0),
+                        cubeRotation[2] + (settings.autoRotate ? (rotationTime * (settings.rotationSpeedZ !== undefined ? settings.rotationSpeedZ : 1) * 0.1) % (2 * Math.PI) : 0)
+                      ]}>
+                        <Grid3D
+                          position={current?.position}
+                          color={current?.color || '#ffffff'}
+                          isActive={true}
+                          number={current?.number}
+                          shape={current?.shape}
+                          positionEnabled={settings.stimuli.position}
+                          use3DShapes={settings.use3DShapes}
+                        />
+                      </group>
                       <OrbitControls
                         enableZoom={false}
-                        autoRotate={settings.autoRotate}
-                        autoRotateSpeed={1}
+                        autoRotate={false}
                       />
                     </Canvas>
                   </div>
@@ -1007,19 +1050,24 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
                       <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
                         <ambientLight intensity={0.5} />
                         <pointLight position={[10, 10, 10]} />
-                        <Grid3D
-                          position={current?.position}
-                          color={current?.color || '#ffffff'}
-                          isActive={true}
-                          number={current?.number}
-                          shape={current?.shape}
-                          positionEnabled={settings.stimuli.position}
-                          use3DShapes={settings.use3DShapes}
-                        />
+                        <group rotation={[
+                          cubeRotation[0] + (settings.autoRotate ? (rotationTime * (settings.rotationSpeedY !== undefined ? settings.rotationSpeedY : 1) * 0.1) % (2 * Math.PI) : 0),
+                          cubeRotation[1] + (settings.autoRotate ? (rotationTime * (settings.rotationSpeedX !== undefined ? settings.rotationSpeedX : 1) * 0.1) % (2 * Math.PI) : 0),
+                          cubeRotation[2] + (settings.autoRotate ? (rotationTime * (settings.rotationSpeedZ !== undefined ? settings.rotationSpeedZ : 1) * 0.1) % (2 * Math.PI) : 0)
+                        ]}>
+                          <Grid3D
+                            position={current?.position}
+                            color={current?.color || '#ffffff'}
+                            isActive={true}
+                            number={current?.number}
+                            shape={current?.shape}
+                            positionEnabled={settings.stimuli.position}
+                            use3DShapes={settings.use3DShapes}
+                          />
+                        </group>
                         <OrbitControls
                           enableZoom={false}
-                          autoRotate={settings.autoRotate}
-                          autoRotateSpeed={1}
+                          autoRotate={false}
                         />
                       </Canvas>
                     ) : (
