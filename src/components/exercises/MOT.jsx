@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { HelpButton } from '@/components/HelpButton';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { PerspectiveCamera, Environment, Effects } from '@react-three/drei';
+import { PerspectiveCamera, Environment, Effects, Text } from '@react-three/drei';
 import { Physics, useSphere } from '@react-three/cannon';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
@@ -49,9 +49,10 @@ function Ball({
   const [ballSize, setBallSize] = useState(0.45);
   const defaultSize = 0.45;
   
-  // Calculate actual velocity based on min/max settings
+  // Calculate actual velocity based on speed setting
+  // Use the single speed setting if available, otherwise fall back to min/max for backward compatibility
   const actualVelocity = velocity > 0
-    ? Math.max(physics.minSpeed, Math.min(physics.maxSpeed, velocity))
+    ? (physics.speed || velocity)
     : 0;
   
   // Set up physics with configurable density
@@ -61,7 +62,12 @@ function Ball({
     args: [ballSize],
     linearDamping: 0.31,
     angularDamping: 0.31,
+    // Use collisionResponse to properly enable/disable collisions
     collisionResponse: physics.collisionEnabled,
+    // Set collisionFilterGroup and collisionFilterMask to disable collisions completely when not enabled
+    // When collisions are disabled, use a unique group ID for each ball to prevent collisions
+    collisionFilterGroup: physics.collisionEnabled ? 1 : index + 100, // Unique group when disabled
+    collisionFilterMask: physics.collisionEnabled ? 1 : 0, // No mask when disabled
     fixedRotation: true,
     material: {
       friction: 0,
@@ -88,35 +94,34 @@ function Ball({
       let interval;
       
       if (physics.movementPattern === 'regular') {
-        // Regular pattern - occasional random direction changes
-        interval = setInterval(() => {
-          const angle = Math.random() * Math.PI * 2;
-          const elevation = (Math.random() - 0.5) * Math.PI;
-          const speed = actualVelocity * (0.8 + Math.random() * 0.4);
-          api.velocity.set(
-            Math.cos(angle) * Math.cos(elevation) * speed,
-            Math.sin(elevation) * speed,
-            Math.sin(angle) * Math.cos(elevation) * speed
-          );
-        }, 2000);
+        // Regular pattern - no random direction changes
+        // Ensure we don't change direction at all for regular movement
+        // Just maintain the initial velocity throughout tracking
       } else if (physics.movementPattern === 'globalJitter') {
         // Global jitter - all balls change direction simultaneously
         // This is handled in the Scene component
       } else if (physics.movementPattern === 'individualJitter') {
         // Individual jitter - each ball changes independently
-        const jitterFrequency = 1000 / (physics.jitterIntensity || 5);
+        // Use the specific individual jitter settings or fall back to the general jitter settings
+        const jitterIntensity = physics.individualJitterIntensity || physics.jitterIntensity || 5;
+        const jitterInterval = physics.individualJitterInterval || 1000;
+        
+        // Calculate jitter magnitude based on intensity (higher intensity = more dramatic direction changes)
+        const jitterMagnitude = jitterIntensity / 5; // Scale from 1-10 to 0.2-2.0
+        const jitterProbability = jitterMagnitude * 0.3; // Scale probability based on intensity
+        
         interval = setInterval(() => {
-          if (Math.random() < 0.3) { // 30% chance to change direction
+          if (Math.random() < jitterProbability) { // Chance to change direction based on intensity
             const angle = Math.random() * Math.PI * 2;
             const elevation = (Math.random() - 0.5) * Math.PI;
-            const speed = actualVelocity * (0.8 + Math.random() * 0.4);
+            const speed = actualVelocity * (0.8 + jitterMagnitude * Math.random() * 0.4);
             api.velocity.set(
               Math.cos(angle) * Math.cos(elevation) * speed,
               Math.sin(elevation) * speed,
               Math.sin(angle) * Math.cos(elevation) * speed
             );
           }
-        }, jitterFrequency);
+        }, jitterInterval);
       }
 
       return () => clearInterval(interval);
@@ -163,26 +168,147 @@ function Ball({
   useFrame(() => {
     if (currentGameState === 'tracking') {
       // Random color changes
-      if (distractions.colorChanges && Math.random() < 0.005) {
-        const r = Math.floor(Math.random() * 255);
-        const g = Math.floor(Math.random() * 255);
-        const b = Math.floor(Math.random() * 255);
-        setBallColor(`rgb(${r}, ${g}, ${b})`);
+      if (distractions.colorChanges) {
+        // Get color change settings
+        const colorChangeInterval = distractions.colorChangeInterval || 1000;
+        const colorChangeProbability = 0.005 * (1000 / colorChangeInterval);
+        const allSameColor = distractions.allSameColor !== undefined ? distractions.allSameColor : true;
+        
+        // Check if we should change in sync or individually
+        const shouldChangeColor = distractions.colorChangesSync
+          ? index === 0 && Math.random() < colorChangeProbability // Only first ball triggers change for all
+          : Math.random() < colorChangeProbability; // Each ball changes independently
+        
+        if (shouldChangeColor) {
+          // Generate a random color
+          const r = Math.floor(Math.random() * 255);
+          const g = Math.floor(Math.random() * 255);
+          const b = Math.floor(Math.random() * 255);
+          const newColor = `rgb(${r}, ${g}, ${b})`;
+          
+          // If in sync mode and this is the first ball, use a global event to change all balls
+          if (distractions.colorChangesSync && index === 0) {
+            // If all balls should be the same color, use the same color for all
+            if (allSameColor) {
+              // Use a custom event to synchronize color changes
+              const colorEvent = new CustomEvent('syncColorChange', {
+                detail: { color: newColor }
+              });
+              window.dispatchEvent(colorEvent);
+            } else {
+              // Use a custom event to trigger individual color changes
+              const colorEvent = new CustomEvent('triggerColorChange', {});
+              window.dispatchEvent(colorEvent);
+            }
+          } else if (!distractions.colorChangesSync) {
+            // Individual change
+            setBallColor(newColor);
+          }
+        }
       } else if (!distractions.colorChanges) {
         setBallColor('#ffffff');
       }
       
       // Random size changes
-      if (distractions.sizeChanges && Math.random() < 0.005) {
-        const newSize = defaultSize * (0.8 + Math.random() * 0.4);
-        setBallSize(newSize);
-        api.setRadius(newSize);
+      if (distractions.sizeChanges) {
+        // Get size change settings or use defaults
+        const minSize = distractions.sizeChangeMin || 0.8;
+        const maxSize = distractions.sizeChangeMax || 1.2;
+        const sizeChangeInterval = distractions.sizeChangeInterval || 2000;
+        const sizeChangeProbability = 0.005 * (1000 / sizeChangeInterval);
+        const changeAllAtOnce = distractions.sizeChangesSync || false;
+        const allSameSize = distractions.allSameSize !== undefined ? distractions.allSameSize : true;
+        
+        // Determine if we should change size
+        const shouldChangeSize = changeAllAtOnce
+          ? index === 0 && Math.random() < sizeChangeProbability // Only first ball triggers change for all
+          : Math.random() < sizeChangeProbability; // Each ball changes independently
+        
+        if (shouldChangeSize) {
+          // Calculate new size based on settings
+          const sizeMultiplier = minSize + Math.random() * (maxSize - minSize);
+          const newSize = defaultSize * sizeMultiplier;
+          
+          // If changing all at once and this is the first ball, use a custom event
+          if (changeAllAtOnce && index === 0) {
+            if (allSameSize) {
+              // All balls change to the same size
+              const sizeEvent = new CustomEvent('syncSizeChange', {
+                detail: { size: newSize }
+              });
+              window.dispatchEvent(sizeEvent);
+            } else {
+              // All balls change size but to different sizes
+              const sizeEvent = new CustomEvent('triggerSizeChange', {});
+              window.dispatchEvent(sizeEvent);
+            }
+          } else if (!changeAllAtOnce) {
+            // Individual change
+            setBallSize(newSize);
+            api.setRadius(newSize);
+          }
+        }
       } else if (!distractions.sizeChanges && ballSize !== defaultSize) {
         setBallSize(defaultSize);
         api.setRadius(defaultSize);
       }
     }
   });
+  
+  // Listen for synchronized color changes
+  useEffect(() => {
+    const handleSyncColorChange = (e) => {
+      if (distractions.colorChanges && distractions.colorChangesSync) {
+        setBallColor(e.detail.color);
+      }
+    };
+    
+    // Listen for individual color changes trigger
+    const handleTriggerColorChange = () => {
+      if (distractions.colorChanges && distractions.colorChangesSync) {
+        // Generate a random color for each ball
+        const r = Math.floor(Math.random() * 255);
+        const g = Math.floor(Math.random() * 255);
+        const b = Math.floor(Math.random() * 255);
+        const newColor = `rgb(${r}, ${g}, ${b})`;
+        setBallColor(newColor);
+      }
+    };
+    
+    // Listen for synchronized size changes
+    const handleSyncSizeChange = (e) => {
+      if (distractions.sizeChanges && distractions.sizeChangesSync) {
+        setBallSize(e.detail.size);
+        api.setRadius(e.detail.size);
+      }
+    };
+    
+    // Listen for individual size changes trigger
+    const handleTriggerSizeChange = () => {
+      if (distractions.sizeChanges && distractions.sizeChangesSync) {
+        // Generate a random size for each ball
+        const minSize = distractions.sizeChangeMin || 0.8;
+        const maxSize = distractions.sizeChangeMax || 1.2;
+        const sizeMultiplier = minSize + Math.random() * (maxSize - minSize);
+        const newSize = defaultSize * sizeMultiplier;
+        setBallSize(newSize);
+        api.setRadius(newSize);
+      }
+    };
+    
+    window.addEventListener('syncColorChange', handleSyncColorChange);
+    window.addEventListener('triggerColorChange', handleTriggerColorChange);
+    window.addEventListener('syncSizeChange', handleSyncSizeChange);
+    window.addEventListener('triggerSizeChange', handleTriggerSizeChange);
+    
+    return () => {
+      window.removeEventListener('syncColorChange', handleSyncColorChange);
+      window.removeEventListener('triggerColorChange', handleTriggerColorChange);
+      window.removeEventListener('syncSizeChange', handleSyncSizeChange);
+      window.removeEventListener('triggerSizeChange', handleTriggerSizeChange);
+    };
+  }, [api, distractions.colorChanges, distractions.colorChangesSync, distractions.sizeChanges, distractions.sizeChangesSync,
+      distractions.sizeChangeMin, distractions.sizeChangeMax, defaultSize]);
   
   // Determine ball color based on game state
   const getBallColor = () => {
@@ -244,20 +370,56 @@ function Ball({
     }
   };
 
+  // Create a number label for the ball during selection phase
+  const renderNumberLabel = () => {
+    if (currentGameState !== 'selection' || showingResults) return null;
+    
+    // Only show numbers 1-8
+    if (index >= 8) return null;
+    
+    // Create a text label with the ball number (1-indexed)
+    const ballNumber = index + 1;
+    
+    // Use a billboard effect to always face the camera
+    return (
+      <group>
+        <mesh position={[0, ballSize * 1.5, 0]}>
+          <sphereGeometry args={[ballSize * 0.4, 16, 16]} />
+          <meshBasicMaterial color="#000000" opacity={0.7} transparent />
+        </mesh>
+        <Text
+          position={[0, ballSize * 1.5, 0]}
+          fontSize={ballSize * 0.7}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+          depthOffset={-10}
+          renderOrder={1000}
+          billboard
+        >
+          {ballNumber.toString()}
+        </Text>
+      </group>
+    );
+  };
+
   return (
-    <mesh
-      ref={ref}
-      onClick={isSelectable ? onClick : undefined}
-    >
-      <sphereGeometry args={[ballSize, 32, 32]} />
-      <meshPhongMaterial
-        color={getBallColor()}
-        emissive={getEmissiveColor()}
-        emissiveIntensity={getEmissiveIntensity()}
-        shininess={70}
-        specular="#ffffff"
-      />
-    </mesh>
+    <group>
+      <mesh
+        ref={ref}
+        onClick={isSelectable ? onClick : undefined}
+      >
+        <sphereGeometry args={[ballSize, 32, 32]} />
+        <meshPhongMaterial
+          color={getBallColor()}
+          emissive={getEmissiveColor()}
+          emissiveIntensity={getEmissiveIntensity()}
+          shininess={70}
+          specular="#ffffff"
+        />
+      </mesh>
+      {renderNumberLabel()}
+    </group>
   );
 }
 
@@ -351,12 +513,18 @@ function Crosshair({ settings }) {
 
 // Camera controller for rotation
 function CameraController({ settings, gameState }) {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
   const rotationRef = useRef({ x: 0, y: 0, z: 0 });
   const directionRef = useRef({ x: 1, y: 1, z: 1 });
+  const isDraggingRef = useRef(false);
+  const previousMousePositionRef = useRef({ x: 0, y: 0 });
   
   // Get current game state from settings if not provided directly
   const currentGameState = settings?.gameState || gameState;
+  
+  // Mouse rotation settings
+  const mouseRotationEnabled = settings?.mouseRotation?.enabled || false;
+  const mouseSensitivity = settings?.mouseRotation?.sensitivity || 1.0;
   
   // Get rotation settings for current phase
   const getRotationSettings = () => {
@@ -376,6 +544,47 @@ function CameraController({ settings, gameState }) {
   // Track previous game state to detect transitions
   const prevGameStateRef = useRef(currentGameState);
   
+  // Set up mouse rotation handlers
+  useEffect(() => {
+    if (!mouseRotationEnabled || currentGameState === 'setup' || currentGameState === 'results') {
+      return;
+    }
+    
+    const handleMouseDown = (e) => {
+      if (e.button === 0) { // Left mouse button
+        isDraggingRef.current = true;
+        previousMousePositionRef.current = { x: e.clientX, y: e.clientY };
+      }
+    };
+    
+    const handleMouseMove = (e) => {
+      if (!isDraggingRef.current) return;
+      
+      const deltaX = (e.clientX - previousMousePositionRef.current.x) * 0.01 * mouseSensitivity;
+      const deltaY = (e.clientY - previousMousePositionRef.current.y) * 0.01 * mouseSensitivity;
+      
+      rotationRef.current.y += deltaX;
+      rotationRef.current.x += deltaY;
+      
+      previousMousePositionRef.current = { x: e.clientX, y: e.clientY };
+    };
+    
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+    };
+    
+    const canvas = gl.domElement;
+    canvas.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      canvas.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [mouseRotationEnabled, currentGameState, gl, mouseSensitivity]);
+  
   // Apply camera rotation
   useFrame((state, delta) => {
     if (currentGameState === 'setup' || currentGameState === 'results') {
@@ -389,13 +598,11 @@ function CameraController({ settings, gameState }) {
     
     // Check for phase transitions
     if (prevGameStateRef.current !== currentGameState) {
-      // If transitioning from tracking to selection (end of boomerang mode)
-      if (prevGameStateRef.current === 'tracking' && currentGameState === 'selection') {
-        // Snap back to head-on view
-        rotationRef.current = { x: 0, y: 0, z: 0 };
-        camera.position.set(0, 0, 12);
-        camera.lookAt(0, 0, 0);
-      }
+      // Reset camera position at the end of each phase
+      rotationRef.current = { x: 0, y: 0, z: 0 };
+      camera.position.set(0, 0, 12);
+      camera.lookAt(0, 0, 0);
+      
       prevGameStateRef.current = currentGameState;
     }
     
@@ -433,113 +640,241 @@ function CameraController({ settings, gameState }) {
   return null;
 }
 
-// Screen flash effect for distractions (DOM-based, not using R3F hooks)
+// Screen flash effect for distractions (DOM-based, only flashes the game area with solid white)
 function ScreenFlash({ settings, gameState }) {
   const [flashOpacity, setFlashOpacity] = useState(0);
-  const [flashColor, setFlashColor] = useState('#ffffff');
   
-  // Use regular React useEffect + setInterval instead of useFrame
+  // Use regular React useEffect + setTimeout instead of setInterval for better performance
   useEffect(() => {
-    if (gameState !== 'tracking' || !settings?.distractions?.screenFlash) return;
+    if (gameState !== 'tracking' || !settings?.distractions?.screenFlash) {
+      setFlashOpacity(0); // Ensure flash is off when not tracking
+      return;
+    }
     
-    // Check for flash effect every 50ms (approximately similar to frame rate)
-    const interval = setInterval(() => {
-      if (Math.random() < 0.01) { // Adjusted probability for interval-based checking
-        // Random color or white
-        const r = Math.floor(Math.random() * 255);
-        const g = Math.floor(Math.random() * 255);
-        const b = Math.floor(Math.random() * 255);
-        setFlashColor(Math.random() < 0.5 ? '#ffffff' : `rgb(${r}, ${g}, ${b})`);
-        setFlashOpacity(0.3 + Math.random() * 0.4); // 30-70% opacity
+    // Get flash settings or use defaults
+    const minInterval = settings?.distractions?.flashMinInterval || 2000;
+    const maxInterval = settings?.distractions?.flashMaxInterval || 8000;
+    const flashLength = settings?.distractions?.flashLength || 200;
+    
+    // Function to schedule the next flash
+    const scheduleNextFlash = () => {
+      const nextDelay = minInterval + Math.random() * (maxInterval - minInterval);
+      const timeoutId = setTimeout(() => {
+        // Always use white color with 100% opacity
+        setFlashOpacity(1);
         
-        // Reset after a short time
-        setTimeout(() => {
+        // Reset after configured flash length
+        const resetId = setTimeout(() => {
           setFlashOpacity(0);
-        }, 100 + Math.random() * 150); // 100-250ms flash
-      }
-    }, 50);
+          // Schedule the next flash after this one ends
+          scheduleNextFlash();
+        }, flashLength);
+        
+        return () => clearTimeout(resetId);
+      }, nextDelay);
+      
+      return () => clearTimeout(timeoutId);
+    };
     
-    return () => clearInterval(interval);
-  }, [gameState, settings?.distractions?.screenFlash]);
+    // Start the flash cycle
+    const cleanupFn = scheduleNextFlash();
+    
+    return () => {
+      cleanupFn();
+      setFlashOpacity(0); // Ensure flash is off when component unmounts
+    };
+  }, [gameState, settings?.distractions?.screenFlash, settings?.distractions?.flashMinInterval,
+      settings?.distractions?.flashMaxInterval, settings?.distractions?.flashLength]);
   
   if (flashOpacity <= 0) return null;
   
   return (
     <div
       style={{
-        position: 'absolute',
+        position: 'absolute', // Use absolute to only cover the game area
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: flashColor,
+        backgroundColor: '#ffffff', // Always white
         opacity: flashOpacity,
         pointerEvents: 'none',
-        zIndex: 10
+        zIndex: 100 // Higher z-index to ensure it covers everything
       }}
     />
   );
 }
 
-// 3D Glasses effect
+// 3D Glasses effect using AnaglyphEffect from three.js
 function ThreeDGlassesEffect({ enabled }) {
-  if (!enabled) return null;
+  const { gl, scene, camera } = useThree();
+  const effectRef = useRef(null);
+  const originalRenderRef = useRef(null);
   
-  // Import AnaglyphEffect from three.js examples
   useEffect(() => {
-    if (enabled) {
-      // We'll use a different approach for 3D glasses
-      // Instead of using the <anaglyph> component which isn't available
-      // We'll apply a red/cyan color filter to the scene
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        canvas.style.filter = 'saturate(0) contrast(1.1)';
-        canvas.style.animation = 'anaglyphEffect 5s infinite alternate';
-        
-        // Add the CSS animation if it doesn't exist
-        if (!document.getElementById('anaglyph-style')) {
-          const style = document.createElement('style');
-          style.id = 'anaglyph-style';
-          style.textContent = `
-            @keyframes anaglyphEffect {
-              0% { filter: saturate(0) contrast(1.1) hue-rotate(0deg); }
-              100% { filter: saturate(0) contrast(1.1) hue-rotate(180deg); }
-            }
-          `;
-          document.head.appendChild(style);
-        }
-      }
-    } else {
-      // Remove the effect when disabled
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        canvas.style.filter = '';
-        canvas.style.animation = '';
-      }
+    // Store the original render method if we haven't already
+    if (!originalRenderRef.current) {
+      originalRenderRef.current = gl.render.bind(gl);
+    }
+    
+    // Clean up any existing effect
+    if (effectRef.current) {
+      // Restore original render method
+      gl.render = originalRenderRef.current;
+      effectRef.current.dispose();
+      effectRef.current = null;
+    }
+    
+    // If not enabled, just return
+    if (!enabled) {
+      return;
+    }
+    
+    try {
+      // Get the renderer size
+      const size = gl.getSize(new THREE.Vector2());
       
-      // Remove the style element when not needed
-      const style = document.getElementById('anaglyph-style');
-      if (style) {
-        document.head.removeChild(style);
-      }
+      // Create the anaglyph effect using the imported class
+      const anaglyphEffect = new AnaglyphEffect(gl, size.width, size.height);
+      
+      // Store the effect
+      effectRef.current = anaglyphEffect;
+      
+      // Override the render method
+      gl.render = function(scene, camera) {
+        if (effectRef.current) {
+          effectRef.current.render(scene, camera);
+        } else {
+          originalRenderRef.current(scene, camera);
+        }
+      };
+    } catch (error) {
+      console.error("Failed to initialize 3D glasses effect:", error);
     }
     
     return () => {
-      // Cleanup
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        canvas.style.filter = '';
-        canvas.style.animation = '';
+      // Restore original render method
+      if (originalRenderRef.current) {
+        gl.render = originalRenderRef.current;
       }
       
-      const style = document.getElementById('anaglyph-style');
-      if (style) {
-        document.head.removeChild(style);
+      // Dispose resources
+      if (effectRef.current) {
+        effectRef.current.dispose();
+        effectRef.current = null;
       }
     };
-  }, [enabled]);
+  }, [enabled, gl, scene, camera]);
   
   return null;
+}
+
+// AnaglyphEffect implementation from three.js
+class AnaglyphEffect {
+  constructor(renderer, width = 512, height = 512) {
+    // Dubois matrices from https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.7.6968&rep=rep1&type=pdf#page=4
+    this.colorMatrixLeft = new THREE.Matrix3().fromArray([
+      0.456100, -0.0400822, -0.0152161,
+      0.500484, -0.0378246, -0.0205971,
+      0.176381, -0.0157589, -0.00546856
+    ]);
+
+    this.colorMatrixRight = new THREE.Matrix3().fromArray([
+      -0.0434706, 0.378476, -0.0721527,
+      -0.0879388, 0.73364, -0.112961,
+      -0.00155529, -0.0184503, 1.2264
+    ]);
+
+    const _stereo = new THREE.StereoCamera();
+    _stereo.eyeSep = 0.064; // Eye separation
+
+    const _params = {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.NearestFilter,
+      format: THREE.RGBAFormat
+    };
+
+    const _renderTargetL = new THREE.WebGLRenderTarget(width, height, _params);
+    const _renderTargetR = new THREE.WebGLRenderTarget(width, height, _params);
+
+    const _material = new THREE.ShaderMaterial({
+      uniforms: {
+        mapLeft: { value: _renderTargetL.texture },
+        mapRight: { value: _renderTargetR.texture },
+        colorMatrixLeft: { value: this.colorMatrixLeft },
+        colorMatrixRight: { value: this.colorMatrixRight }
+      },
+      vertexShader: [
+        'varying vec2 vUv;',
+        'void main() {',
+        '  vUv = vec2(uv.x, uv.y);',
+        '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+        '}'
+      ].join('\n'),
+      fragmentShader: [
+        'uniform sampler2D mapLeft;',
+        'uniform sampler2D mapRight;',
+        'varying vec2 vUv;',
+        'uniform mat3 colorMatrixLeft;',
+        'uniform mat3 colorMatrixRight;',
+        'void main() {',
+        '  vec2 uv = vUv;',
+        '  vec4 colorL = texture2D(mapLeft, uv);',
+        '  vec4 colorR = texture2D(mapRight, uv);',
+        '  vec3 color = clamp(',
+        '    colorMatrixLeft * colorL.rgb +',
+        '    colorMatrixRight * colorR.rgb, 0., 1.);',
+        '  gl_FragColor = vec4(',
+        '    color.r, color.g, color.b,',
+        '    max(colorL.a, colorR.a));',
+        '}'
+      ].join('\n')
+    });
+
+    // Create a separate scene for the anaglyph effect
+    const anaglyphScene = new THREE.Scene();
+    const anaglyphMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), _material);
+    anaglyphScene.add(anaglyphMesh);
+    const anaglyphCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    this.setSize = function(width, height) {
+      const pixelRatio = renderer.getPixelRatio();
+      _renderTargetL.setSize(width * pixelRatio, height * pixelRatio);
+      _renderTargetR.setSize(width * pixelRatio, height * pixelRatio);
+    };
+
+    this.render = function(scene, camera) {
+      const currentRenderTarget = renderer.getRenderTarget();
+
+      if (scene.matrixWorldAutoUpdate === true) scene.updateMatrixWorld();
+      if (camera.parent === null && camera.matrixWorldAutoUpdate === true) camera.updateMatrixWorld();
+
+      _stereo.update(camera);
+
+      renderer.setRenderTarget(_renderTargetL);
+      renderer.clear();
+      renderer.render(scene, _stereo.cameraL);
+
+      renderer.setRenderTarget(_renderTargetR);
+      renderer.clear();
+      renderer.render(scene, _stereo.cameraR);
+
+      renderer.setRenderTarget(null);
+      renderer.clear();
+      
+      // Render the anaglyph effect using the original renderer's render method
+      renderer.render(anaglyphScene, anaglyphCamera);
+
+      renderer.setRenderTarget(currentRenderTarget);
+    };
+
+    this.dispose = function() {
+      _renderTargetL.dispose();
+      _renderTargetR.dispose();
+      _material.dispose();
+      anaglyphMesh.geometry.dispose();
+    };
+  }
 }
 
 // Global jitter controller for all balls
@@ -553,14 +888,22 @@ function GlobalJitterController({ settings, gameState, api }) {
     const physics = settings.physics || {};
     if (physics.movementPattern !== 'globalJitter') return;
     
-    const jitterFrequency = 1000 / (physics.jitterIntensity || 5);
+    // Use the specific global jitter settings or fall back to the general jitter settings
+    const jitterIntensity = physics.globalJitterIntensity || physics.jitterIntensity || 5;
+    const jitterInterval = physics.globalJitterInterval || 2000;
+    
+    // Calculate jitter magnitude based on intensity (higher intensity = more dramatic direction changes)
+    const jitterMagnitude = jitterIntensity / 5; // Scale from 1-10 to 0.2-2.0
+    
     const interval = setInterval(() => {
       if (api && api.length > 0) {
         // Apply the same random direction to all balls
         const angle = Math.random() * Math.PI * 2;
         const elevation = (Math.random() - 0.5) * Math.PI;
-        const velocity = Math.max(physics.minSpeed || 5, Math.min(physics.maxSpeed || 10, settings.velocity));
-        const speed = velocity * (0.8 + Math.random() * 0.4);
+        // Use the single speed setting if available, otherwise fall back to min/max for backward compatibility
+        const velocity = physics.speed || settings.velocity || 7;
+        // Apply jitter magnitude to speed variation
+        const speed = velocity * (0.8 + jitterMagnitude * Math.random() * 0.4);
         
         api.forEach(ballApi => {
           ballApi.velocity.set(
@@ -570,7 +913,7 @@ function GlobalJitterController({ settings, gameState, api }) {
           );
         });
       }
-    }, jitterFrequency);
+    }, jitterInterval);
     
     return () => clearInterval(interval);
   }, [api, currentGameState, settings.physics, settings.velocity]);
@@ -584,10 +927,9 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selecte
   
   // Set up key navigation
   useEffect(() => {
-    if (gameState !== 'selection' || showingResults) return;
-    
     const handleKeyDown = (e) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
+      // Prevent default behavior for game control keys
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' ', 'e', 'E', 'f', 'F', '1', '2', '3', '4', '5', '6', '7', '8'].includes(e.key)) {
         e.preventDefault();
         onKeyNavigation(e.key);
       }
@@ -595,7 +937,7 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selecte
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, showingResults, onKeyNavigation]);
+  }, [onKeyNavigation]);
   
   return (
     <>
@@ -660,16 +1002,17 @@ export default function MOT() {
 
   const defaultSettings = {
     numBalls: 8,
-    numTargets: 3,
+    numTargets: 4,
     rememberTime: 3,
     trackingTime: 10,
-    selectionTime: 5,
+    selectionTime: 0,
     velocity: 7,
     advancedMode: false,
     physics: {
       ballDensity: 1,
-      minSpeed: 5,
-      maxSpeed: 10,
+      speed: 7,
+      minSpeed: 7, // For backward compatibility
+      maxSpeed: 7, // For backward compatibility
       collisionEnabled: true,
       movementPattern: 'regular',
       jitterIntensity: 5
@@ -680,8 +1023,12 @@ export default function MOT() {
       screenFlash: false,
       wallColorChanges: false
     },
+    mouseRotation: {
+      enabled: false,
+      sensitivity: 1.0
+    },
     rotation: {
-      selection: { x: 0, y: 0.5, z: 0, xBoomerang: 0, yBoomerang: 0.5, zBoomerang: 0 },
+      selection: { x: 0, y: 0.3, z: 0, xBoomerang: 0, yBoomerang: 0.5, zBoomerang: 0 },
       memorization: { x: 0, y: 0.5, z: 0, xBoomerang: 0, yBoomerang: 0.5, zBoomerang: 0 },
       tracking: { x: 0, y: 0, z: 0, xBoomerang: 0, yBoomerang: 0, zBoomerang: 0 }
     },
@@ -743,8 +1090,44 @@ export default function MOT() {
       setSettings(updatedSettings);
     }
   }, []);
+  
   const [gameState, setGameState] = useState('setup');
   const [showingResults, setShowingResults] = useState(false);
+  
+  // Update balls when settings change
+  useEffect(() => {
+    // Initialize balls with random positions based on current settings
+    const initialBalls = [];
+    const room = settings.room || { width: 12, height: 8, depth: 12 };
+    const spreadX = room.width * 0.4;
+    const spreadY = room.height * 0.4;
+    const spreadZ = room.depth * 0.4;
+    
+    for (let i = 0; i < settings.numBalls; i++) {
+      initialBalls.push({
+        position: [
+          (Math.random() - 0.5) * spreadX,
+          (Math.random() - 0.5) * spreadY,
+          (Math.random() - 0.5) * spreadZ
+        ]
+      });
+    }
+    setBalls(initialBalls);
+    
+    // If we're in setup mode, also update target indices when ball count changes
+    if (gameState === 'setup') {
+      const newTargetIndices = [];
+      const targetCount = Math.min(settings.numTargets, settings.numBalls - 1);
+      
+      while (newTargetIndices.length < targetCount) {
+        const index = Math.floor(Math.random() * settings.numBalls);
+        if (!newTargetIndices.includes(index)) {
+          newTargetIndices.push(index);
+        }
+      }
+      setTargetIndices(newTargetIndices);
+    }
+  }, [settings.numBalls, settings.numTargets, settings.room]);
   const [balls, setBalls] = useState(() => {
     // Initialize balls with random positions
     const initialBalls = [];
@@ -827,6 +1210,13 @@ const initializeBalls = () => {
 useEffect(() => {
   if (!gameState || gameState === 'setup' || gameState === 'results') return;
 
+  // If we're in selection phase and selectionTime is 0, don't start a timer
+  if (gameState === 'selection' && settings.selectionTime === 0) {
+    // Hide the timer bar for unlimited selection time
+    setTimeLeft(0);
+    return;
+  }
+
   const timer = setInterval(() => {
     setTimeLeft(prev => {
       if (prev <= 0) {
@@ -836,8 +1226,9 @@ useEffect(() => {
           return settings.trackingTime;
         } else if (gameState === 'tracking') {
           setGameState('selection');
-          return settings.selectionTime;
-        } else if (gameState === 'selection') {
+          // If selectionTime is 0, don't start a countdown
+          return settings.selectionTime || 0;
+        } else if (gameState === 'selection' && settings.selectionTime > 0) {
           checkResults();
           return 0;
         }
@@ -848,7 +1239,7 @@ useEffect(() => {
   }, 1000);
 
   return () => clearInterval(timer);
-}, [gameState, settings.trackingTime, settings.rememberTime]);
+}, [gameState, settings.trackingTime, settings.rememberTime, settings.selectionTime]);
 
 // Handle ball click selection
 const handleBallClick = (index) => {
@@ -870,6 +1261,63 @@ const handleBallClick = (index) => {
 
 // Handle keyboard navigation
 const handleKeyNavigation = (key) => {
+  // Handle 'F' key to move to next phase regardless of current game state
+  if (key === 'f' || key === 'F') {
+    if (gameState === 'ready') {
+      setGameState('tracking');
+      setTimeLeft(settings.trackingTime);
+    } else if (gameState === 'tracking') {
+      setGameState('selection');
+      setTimeLeft(settings.selectionTime || 0);
+    } else if (gameState === 'selection' && !showingResults) {
+      checkResults();
+    }
+    return;
+  }
+  
+  // Handle 'E' key for fullscreen
+  if (key === 'e' || key === 'E') {
+    // Toggle fullscreen
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+    return;
+  }
+  
+  // Handle Space key to start/stop the exercise
+  if (key === ' ') {
+    if (gameState === 'setup') {
+      initializeBalls();
+    } else if (gameState === 'results') {
+      setSelectedIndices([]);
+      setShowingResults(false);
+      initializeBalls();
+    } else {
+      setSelectedIndices([]);
+      setShowingResults(false);
+      setGameState('setup');
+      setStartTime(null);
+    }
+    return;
+  }
+  
+  // Handle number keys 1-8 for direct ball selection
+  if (gameState === 'selection' && !showingResults) {
+    const numKey = parseInt(key);
+    if (!isNaN(numKey) && numKey >= 1 && numKey <= 8 && numKey <= balls.length) {
+      const ballIndex = numKey - 1;
+      handleBallClick(ballIndex);
+      return;
+    }
+  }
+  
+  // Only handle arrow keys and Enter during selection phase
   if (gameState !== 'selection' || showingResults) return;
   
   // If no ball is highlighted, highlight the first one

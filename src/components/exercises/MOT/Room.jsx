@@ -3,7 +3,13 @@ import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 
 export function Room({ settings }) {
-  const [wallColor, setWallColor] = useState('#111111');
+  // Individual wall colors
+  const [floorColor, setFloorColor] = useState('#111111');
+  const [ceilingColor, setCeilingColor] = useState('#111111');
+  const [backWallColor, setBackWallColor] = useState('#111111');
+  const [leftWallColor, setLeftWallColor] = useState('#111111');
+  const [rightWallColor, setRightWallColor] = useState('#111111');
+  
   const roomRef = useRef();
   
   // Get room dimensions from settings or use defaults
@@ -35,21 +41,65 @@ export function Room({ settings }) {
   // Get game state from settings
   const gameState = settings?.gameState || 'setup';
   
-  // Handle wall color changes if distractions are enabled
+  // Reset wall colors when distraction is disabled
   useEffect(() => {
     if (!settings?.distractions?.wallColorChanges) {
-      setWallColor('#111111');
+      const defaultColor = '#111111';
+      setFloorColor(defaultColor);
+      setCeilingColor(defaultColor);
+      setBackWallColor(defaultColor);
+      setLeftWallColor(defaultColor);
+      setRightWallColor(defaultColor);
     }
   }, [settings?.distractions?.wallColorChanges]);
+  
+  // Generate a random color
+  const getRandomColor = () => {
+    const r = Math.floor(Math.random() * 255);
+    const g = Math.floor(Math.random() * 255);
+    const b = Math.floor(Math.random() * 255);
+    return `rgb(${r}, ${g}, ${b})`;
+  };
   
   // Random wall color changes during tracking
   useFrame(() => {
     if (settings?.distractions?.wallColorChanges && gameState === 'tracking') {
-      if (Math.random() < 0.01) { // 1% chance per frame to change color
-        const r = Math.floor(Math.random() * 255);
-        const g = Math.floor(Math.random() * 255);
-        const b = Math.floor(Math.random() * 255);
-        setWallColor(`rgb(${r}, ${g}, ${b})`);
+      const changeSeparately = settings?.distractions?.wallColorChangesSeparate;
+      const changeInSync = settings?.distractions?.wallColorChangesSync;
+      const wallChangeInterval = settings?.distractions?.wallColorChangeInterval || 1000;
+      
+      // Calculate probability based on frame rate (60fps) and desired interval
+      const changeProb = 0.01 * (1000 / wallChangeInterval);
+      
+      if (Math.random() < changeProb) { // Chance per frame to change color
+        if (changeSeparately) {
+          if (changeInSync) {
+            // Change all walls at once but to different colors
+            const shouldChange = Math.random() < 0.5; // 50% chance to trigger a change
+            if (shouldChange) {
+              setFloorColor(getRandomColor());
+              setCeilingColor(getRandomColor());
+              setBackWallColor(getRandomColor());
+              setLeftWallColor(getRandomColor());
+              setRightWallColor(getRandomColor());
+            }
+          } else {
+            // Change walls individually with independent probabilities
+            if (Math.random() < 0.2) setFloorColor(getRandomColor());
+            if (Math.random() < 0.2) setCeilingColor(getRandomColor());
+            if (Math.random() < 0.2) setBackWallColor(getRandomColor());
+            if (Math.random() < 0.2) setLeftWallColor(getRandomColor());
+            if (Math.random() < 0.2) setRightWallColor(getRandomColor());
+          }
+        } else {
+          // Change all walls to the same color
+          const newColor = getRandomColor();
+          setFloorColor(newColor);
+          setCeilingColor(newColor);
+          setBackWallColor(newColor);
+          setLeftWallColor(newColor);
+          setRightWallColor(newColor);
+        }
       }
     }
   });
@@ -63,7 +113,7 @@ export function Room({ settings }) {
       <mesh position={[0, -halfHeight, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[width + 0.001, depth + 0.001]} /> {/* Slightly larger to prevent gaps */}
         <meshPhongMaterial
-          color={wallColor}
+          color={floorColor}
           transparent
           opacity={0.3}
           shininess={0}
@@ -74,7 +124,7 @@ export function Room({ settings }) {
       <mesh position={[0, 0, -halfDepth]} receiveShadow>
         <planeGeometry args={[width + 0.001, height + 0.001]} /> {/* Slightly larger to prevent gaps */}
         <meshPhongMaterial
-          color={wallColor}
+          color={backWallColor}
           transparent
           opacity={0.3}
           shininess={0}
@@ -85,7 +135,7 @@ export function Room({ settings }) {
       <mesh position={[-halfWidth, 0, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[depth + 0.001, height + 0.001]} /> {/* Slightly larger to prevent gaps */}
         <meshPhongMaterial
-          color={wallColor}
+          color={leftWallColor}
           transparent
           opacity={0.3}
           shininess={0}
@@ -95,7 +145,7 @@ export function Room({ settings }) {
       <mesh position={[halfWidth, 0, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[depth + 0.001, height + 0.001]} /> {/* Slightly larger to prevent gaps */}
         <meshPhongMaterial
-          color={wallColor}
+          color={rightWallColor}
           transparent
           opacity={0.3}
           shininess={0}
@@ -106,7 +156,7 @@ export function Room({ settings }) {
       <mesh position={[0, halfHeight, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[width + 0.001, depth + 0.001]} /> {/* Slightly larger to prevent gaps */}
         <meshPhongMaterial
-          color={wallColor}
+          color={ceilingColor}
           transparent
           opacity={0.3}
           shininess={0}

@@ -155,7 +155,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
       <div className="space-y-4">
 
         {/* Difficulty Section (renamed from Objects) */}
-        <SettingsGroup title="Difficulty" defaultExpanded={true}>
+        <SettingsGroup title="Difficulty" defaultExpanded={false}>
           <div className="form-group">
             <label className="form-label">Number of Balls</label>
             <input
@@ -204,31 +204,22 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Minimum Speed</label>
+            <label className="form-label">Speed</label>
             <input
               type="number"
-              value={physics.minSpeed}
-              onChange={e => handleNestedChange('physics', 'minSpeed', Math.max(1, Math.min(physics.maxSpeed, parseInt(e.target.value))))}
+              value={physics.speed || ((physics.minSpeed + physics.maxSpeed) / 2)}
+              onChange={e => {
+                const speed = Math.max(1, parseInt(e.target.value));
+                handleNestedChange('physics', 'speed', speed);
+                // Also update min/max for backward compatibility
+                handleNestedChange('physics', 'minSpeed', speed);
+                handleNestedChange('physics', 'maxSpeed', speed);
+              }}
               min="1"
-              max={physics.maxSpeed}
               className="form-input w-20"
               disabled={isPlaying}
             />
-            <SettingTooltip text="Minimum velocity for balls" />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Maximum Speed</label>
-            <input
-              type="number"
-              value={physics.maxSpeed}
-              onChange={e => handleNestedChange('physics', 'maxSpeed', Math.max(physics.minSpeed, Math.min(15, parseInt(e.target.value))))}
-              min={physics.minSpeed}
-              max="15"
-              className="form-input w-20"
-              disabled={isPlaying}
-            />
-            <SettingTooltip text="Maximum velocity for balls" />
+            <SettingTooltip text="Ball movement speed" />
           </div>
 
           <div className="form-group">
@@ -260,20 +251,94 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
             <SettingTooltip text="Controls how balls change direction during movement" />
           </div>
 
-          {physics.movementPattern !== 'regular' && (
-            <div className="form-group">
-              <label className="form-label">Jitter Intensity</label>
-              <input
-                type="number"
-                value={physics.jitterIntensity || 5}
-                onChange={e => handleNestedChange('physics', 'jitterIntensity', Math.max(1, Math.min(10, parseInt(e.target.value))))}
-                min="1"
-                max="10"
-                className="form-input w-20"
-                disabled={isPlaying}
-              />
-              <SettingTooltip text="How frequently and intensely balls change direction" />
-            </div>
+          {physics.movementPattern === 'globalJitter' && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Global Jitter Intensity</label>
+                <input
+                  type="number"
+                  value={physics.globalJitterIntensity || physics.jitterIntensity || 5}
+                  onChange={e => handleNestedChange('physics', 'globalJitterIntensity', Math.max(1, Math.min(10, parseInt(e.target.value))))}
+                  min="1"
+                  max="10"
+                  className="form-input w-20"
+                  disabled={isPlaying}
+                />
+                <SettingTooltip text="How intensely balls change direction (higher = more intense)" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Global Jitter Interval Range (ms)</label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    value={physics.globalJitterMinInterval || 1000}
+                    onChange={e => handleNestedChange('physics', 'globalJitterMinInterval', Math.max(100, Math.min(5000, parseInt(e.target.value))))}
+                    min="100"
+                    max="5000"
+                    step="100"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <span>to</span>
+                  <input
+                    type="number"
+                    value={physics.globalJitterMaxInterval || 3000}
+                    onChange={e => handleNestedChange('physics', 'globalJitterMaxInterval', Math.max(physics.globalJitterMinInterval || 1000, Math.min(10000, parseInt(e.target.value))))}
+                    min={physics.globalJitterMinInterval || 1000}
+                    max="10000"
+                    step="100"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                </div>
+                <SettingTooltip text="How frequently balls change direction (lower = more frequent)" />
+              </div>
+            </>
+          )}
+          
+          {physics.movementPattern === 'individualJitter' && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Individual Jitter Intensity</label>
+                <input
+                  type="number"
+                  value={physics.individualJitterIntensity || physics.jitterIntensity || 5}
+                  onChange={e => handleNestedChange('physics', 'individualJitterIntensity', Math.max(1, Math.min(10, parseInt(e.target.value))))}
+                  min="1"
+                  max="10"
+                  className="form-input w-20"
+                  disabled={isPlaying}
+                />
+                <SettingTooltip text="How intensely balls change direction (higher = more intense)" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Individual Jitter Interval Range (ms)</label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    value={physics.individualJitterMinInterval || 500}
+                    onChange={e => handleNestedChange('physics', 'individualJitterMinInterval', Math.max(100, Math.min(5000, parseInt(e.target.value))))}
+                    min="100"
+                    max="5000"
+                    step="100"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <span>to</span>
+                  <input
+                    type="number"
+                    value={physics.individualJitterMaxInterval || 1500}
+                    onChange={e => handleNestedChange('physics', 'individualJitterMaxInterval', Math.max(physics.individualJitterMinInterval || 500, Math.min(10000, parseInt(e.target.value))))}
+                    min={physics.individualJitterMinInterval || 500}
+                    max="10000"
+                    step="100"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                </div>
+                <SettingTooltip text="How frequently balls change direction (lower = more frequent)" />
+              </div>
+            </>
           )}
         </SettingsGroup>
 
@@ -338,6 +403,35 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                       <span>Change in Sync</span>
                     </label>
                     <SettingTooltip text="When enabled, all balls change color at the same time. When disabled, each ball changes independently." />
+                  </div>
+
+                  {distractions.colorChangesSync && (
+                    <div className="form-group">
+                      <label className="form-label flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={distractions.allSameColor !== false}
+                          onChange={e => handleNestedChange('distractions', 'allSameColor', e.target.checked)}
+                          className="form-checkbox"
+                          disabled={isPlaying}
+                        />
+                        <span>All Same Color</span>
+                      </label>
+                      <SettingTooltip text="When enabled, all balls change to the same color. When disabled, each ball changes to a different color." />
+                    </div>
+                  )}
+
+                  <div className="form-group">
+                    <label className="form-label">Color Change Interval (ms)</label>
+                    <input
+                      type="number"
+                      value={distractions.colorChangeInterval || 1000}
+                      onChange={e => handleNestedChange('distractions', 'colorChangeInterval', Math.max(100, parseInt(e.target.value)))}
+                      min="100"
+                      className="form-input w-20"
+                      disabled={isPlaying}
+                    />
+                    <SettingTooltip text="How frequently color changes occur (lower = more frequent)" />
                   </div>
                 </>
               )}
@@ -415,6 +509,49 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                       />
                     </div>
                     <SettingTooltip text="How often sizes change (in milliseconds)" />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={distractions.sizeChangesSync || false}
+                        onChange={e => handleNestedChange('distractions', 'sizeChangesSync', e.target.checked)}
+                        className="form-checkbox"
+                        disabled={isPlaying}
+                      />
+                      <span>Change in Sync</span>
+                    </label>
+                    <SettingTooltip text="When enabled, all balls change size at the same time. When disabled, each ball changes independently." />
+                  </div>
+
+                  {distractions.sizeChangesSync && (
+                    <div className="form-group">
+                      <label className="form-label flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={distractions.allSameSize !== false}
+                          onChange={e => handleNestedChange('distractions', 'allSameSize', e.target.checked)}
+                          className="form-checkbox"
+                          disabled={isPlaying}
+                        />
+                        <span>All Same Size</span>
+                      </label>
+                      <SettingTooltip text="When enabled, all balls change to the same size. When disabled, each ball changes to a different size." />
+                    </div>
+                  )}
+
+                  <div className="form-group">
+                    <label className="form-label">Size Change Interval (ms)</label>
+                    <input
+                      type="number"
+                      value={distractions.sizeChangeInterval || 2000}
+                      onChange={e => handleNestedChange('distractions', 'sizeChangeInterval', Math.max(100, parseInt(e.target.value)))}
+                      min="100"
+                      className="form-input w-20"
+                      disabled={isPlaying}
+                    />
+                    <SettingTooltip text="How frequently size changes occur (lower = more frequent)" />
                   </div>
                 </>
               )}
@@ -541,7 +678,36 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                       />
                       <span>Change Walls Separately</span>
                     </label>
-                    <SettingTooltip text="When enabled, each wall changes color independently. When disabled, all walls change together." />
+                    <SettingTooltip text="When enabled, each wall changes color independently. When disabled, all walls change to the same color." />
+                  </div>
+
+                  {distractions.wallColorChangesSeparate && (
+                    <div className="form-group">
+                      <label className="form-label flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={distractions.wallColorChangesSync || false}
+                          onChange={e => handleNestedChange('distractions', 'wallColorChangesSync', e.target.checked)}
+                          className="form-checkbox"
+                          disabled={isPlaying}
+                        />
+                        <span>Change in Sync</span>
+                      </label>
+                      <SettingTooltip text="When enabled, all walls change color at the same time but to different colors. When disabled, each wall changes independently." />
+                    </div>
+                  )}
+
+                  <div className="form-group">
+                    <label className="form-label">Wall Color Change Interval (ms)</label>
+                    <input
+                      type="number"
+                      value={distractions.wallColorChangeInterval || 1000}
+                      onChange={e => handleNestedChange('distractions', 'wallColorChangeInterval', Math.max(100, parseInt(e.target.value)))}
+                      min="100"
+                      className="form-input w-20"
+                      disabled={isPlaying}
+                    />
+                    <SettingTooltip text="How frequently wall colors change (lower = more frequent)" />
                   </div>
                 </>
               )}
@@ -552,6 +718,227 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
         {/* Rotation Section */}
         <SettingsGroup title="Rotation" defaultExpanded={false} visible={advancedMode}>
           <div className="space-y-4">
+            {/* Mouse Rotation */}
+            <div className="form-group">
+              <label className="form-label flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={settings.mouseRotation?.enabled || false}
+                  onChange={e => handleNestedChange('mouseRotation', 'enabled', e.target.checked)}
+                  className="form-checkbox"
+                  disabled={isPlaying}
+                />
+                <span>Mouse Rotation</span>
+              </label>
+              <SettingTooltip text="Enable rotation by clicking and dragging in the game area" />
+            </div>
+            
+            {settings.mouseRotation?.enabled && (
+              <div className="form-group">
+                <label className="form-label">Sensitivity</label>
+                <input
+                  type="number"
+                  value={settings.mouseRotation?.sensitivity || 1.0}
+                  onChange={e => handleNestedChange('mouseRotation', 'sensitivity', Math.max(0.1, Math.min(5, parseFloat(e.target.value))))}
+                  min="0.1"
+                  max="5"
+                  step="0.1"
+                  className="form-input w-20"
+                  disabled={isPlaying}
+                />
+                <SettingTooltip text="Mouse rotation sensitivity" />
+              </div>
+            )}
+            {/* Memorization Phase Rotation */}
+            <SettingsGroup title="Memorization Phase" defaultExpanded={false}>
+              <div className="space-y-2">
+                <div className="form-group">
+                  <label className="form-label">X-Axis Rotation Rate</label>
+                  <input
+                    type="number"
+                    value={rotation.memorization.x}
+                    onChange={e => handleRotationChange('memorization', 'x', parseFloat(e.target.value))}
+                    min="-2"
+                    max="2"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="Rotation rate around X-axis (up/down)" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Y-Axis Rotation Rate</label>
+                  <input
+                    type="number"
+                    value={rotation.memorization.y}
+                    onChange={e => handleRotationChange('memorization', 'y', parseFloat(e.target.value))}
+                    min="-2"
+                    max="2"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="Rotation rate around Y-axis (side-to-side)" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Z-Axis Rotation Rate</label>
+                  <input
+                    type="number"
+                    value={rotation.memorization.z}
+                    onChange={e => handleRotationChange('memorization', 'z', parseFloat(e.target.value))}
+                    min="-2"
+                    max="2"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="Rotation rate around Z-axis (roll)" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">X-Axis Boomerang Distance</label>
+                  <input
+                    type="number"
+                    value={rotation.memorization.xBoomerang}
+                    onChange={e => handleRotationChange('memorization', 'xBoomerang', parseFloat(e.target.value))}
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="How far rotation goes before reversing (0 for continuous)" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Y-Axis Boomerang Distance</label>
+                  <input
+                    type="number"
+                    value={rotation.memorization.yBoomerang}
+                    onChange={e => handleRotationChange('memorization', 'yBoomerang', parseFloat(e.target.value))}
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="How far rotation goes before reversing (0 for continuous)" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Z-Axis Boomerang Distance</label>
+                  <input
+                    type="number"
+                    value={rotation.memorization.zBoomerang}
+                    onChange={e => handleRotationChange('memorization', 'zBoomerang', parseFloat(e.target.value))}
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="How far rotation goes before reversing (0 for continuous)" />
+                </div>
+              </div>
+            </SettingsGroup>
+            
+            {/* Tracking Phase Rotation */}
+            <SettingsGroup title="Tracking Phase" defaultExpanded={false}>
+              <div className="space-y-2">
+                <div className="form-group">
+                  <label className="form-label">X-Axis Rotation Rate</label>
+                  <input
+                    type="number"
+                    value={rotation.tracking.x}
+                    onChange={e => handleRotationChange('tracking', 'x', parseFloat(e.target.value))}
+                    min="-2"
+                    max="2"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="Rotation rate around X-axis (up/down)" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Y-Axis Rotation Rate</label>
+                  <input
+                    type="number"
+                    value={rotation.tracking.y}
+                    onChange={e => handleRotationChange('tracking', 'y', parseFloat(e.target.value))}
+                    min="-2"
+                    max="2"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="Rotation rate around Y-axis (side-to-side)" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Z-Axis Rotation Rate</label>
+                  <input
+                    type="number"
+                    value={rotation.tracking.z}
+                    onChange={e => handleRotationChange('tracking', 'z', parseFloat(e.target.value))}
+                    min="-2"
+                    max="2"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="Rotation rate around Z-axis (roll)" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">X-Axis Boomerang Distance</label>
+                  <input
+                    type="number"
+                    value={rotation.tracking.xBoomerang}
+                    onChange={e => handleRotationChange('tracking', 'xBoomerang', parseFloat(e.target.value))}
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="How far rotation goes before reversing (0 for continuous)" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Y-Axis Boomerang Distance</label>
+                  <input
+                    type="number"
+                    value={rotation.tracking.yBoomerang}
+                    onChange={e => handleRotationChange('tracking', 'yBoomerang', parseFloat(e.target.value))}
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="How far rotation goes before reversing (0 for continuous)" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Z-Axis Boomerang Distance</label>
+                  <input
+                    type="number"
+                    value={rotation.tracking.zBoomerang}
+                    onChange={e => handleRotationChange('tracking', 'zBoomerang', parseFloat(e.target.value))}
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="How far rotation goes before reversing (0 for continuous)" />
+                </div>
+              </div>
+            </SettingsGroup>
+            
             {/* Selection Phase Rotation */}
             <SettingsGroup title="Selection Phase" defaultExpanded={false}>
               <div className="space-y-2">
@@ -646,184 +1033,6 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
                 </div>
               </div>
             </SettingsGroup>
-            
-            {/* Memorization Phase Rotation */}
-            <SettingsGroup title="Memorization Phase" defaultExpanded={false}>
-              <div className="space-y-2">
-                <div className="form-group">
-                  <label className="form-label">X-Axis Rotation Rate</label>
-                  <input
-                    type="number"
-                    value={rotation.memorization.x}
-                    onChange={e => handleRotationChange('memorization', 'x', parseFloat(e.target.value))}
-                    min="-2"
-                    max="2"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">Y-Axis Rotation Rate</label>
-                  <input
-                    type="number"
-                    value={rotation.memorization.y}
-                    onChange={e => handleRotationChange('memorization', 'y', parseFloat(e.target.value))}
-                    min="-2"
-                    max="2"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">Z-Axis Rotation Rate</label>
-                  <input
-                    type="number"
-                    value={rotation.memorization.z}
-                    onChange={e => handleRotationChange('memorization', 'z', parseFloat(e.target.value))}
-                    min="-2"
-                    max="2"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">X-Axis Boomerang Distance</label>
-                  <input
-                    type="number"
-                    value={rotation.memorization.xBoomerang}
-                    onChange={e => handleRotationChange('memorization', 'xBoomerang', parseFloat(e.target.value))}
-                    min="0"
-                    max="3"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">Y-Axis Boomerang Distance</label>
-                  <input
-                    type="number"
-                    value={rotation.memorization.yBoomerang}
-                    onChange={e => handleRotationChange('memorization', 'yBoomerang', parseFloat(e.target.value))}
-                    min="0"
-                    max="3"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">Z-Axis Boomerang Distance</label>
-                  <input
-                    type="number"
-                    value={rotation.memorization.zBoomerang}
-                    onChange={e => handleRotationChange('memorization', 'zBoomerang', parseFloat(e.target.value))}
-                    min="0"
-                    max="3"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-              </div>
-            </SettingsGroup>
-            
-            {/* Tracking Phase Rotation */}
-            <SettingsGroup title="Tracking Phase" defaultExpanded={false}>
-              <div className="space-y-2">
-                <div className="form-group">
-                  <label className="form-label">X-Axis Rotation Rate</label>
-                  <input
-                    type="number"
-                    value={rotation.tracking.x}
-                    onChange={e => handleRotationChange('tracking', 'x', parseFloat(e.target.value))}
-                    min="-2"
-                    max="2"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">Y-Axis Rotation Rate</label>
-                  <input
-                    type="number"
-                    value={rotation.tracking.y}
-                    onChange={e => handleRotationChange('tracking', 'y', parseFloat(e.target.value))}
-                    min="-2"
-                    max="2"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">Z-Axis Rotation Rate</label>
-                  <input
-                    type="number"
-                    value={rotation.tracking.z}
-                    onChange={e => handleRotationChange('tracking', 'z', parseFloat(e.target.value))}
-                    min="-2"
-                    max="2"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">X-Axis Boomerang Distance</label>
-                  <input
-                    type="number"
-                    value={rotation.tracking.xBoomerang}
-                    onChange={e => handleRotationChange('tracking', 'xBoomerang', parseFloat(e.target.value))}
-                    min="0"
-                    max="3"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">Y-Axis Boomerang Distance</label>
-                  <input
-                    type="number"
-                    value={rotation.tracking.yBoomerang}
-                    onChange={e => handleRotationChange('tracking', 'yBoomerang', parseFloat(e.target.value))}
-                    min="0"
-                    max="3"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">Z-Axis Boomerang Distance</label>
-                  <input
-                    type="number"
-                    value={rotation.tracking.zBoomerang}
-                    onChange={e => handleRotationChange('tracking', 'zBoomerang', parseFloat(e.target.value))}
-                    min="0"
-                    max="3"
-                    step="0.1"
-                    className="form-input w-20"
-                    disabled={isPlaying}
-                  />
-                </div>
-              </div>
-            </SettingsGroup>
           </div>
         </SettingsGroup>
 
@@ -894,9 +1103,8 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
             <input
               type="number"
               value={settings.rememberTime}
-              onChange={e => handleChange('rememberTime', Math.max(1, Math.min(10, parseInt(e.target.value))))}
+              onChange={e => handleChange('rememberTime', Math.max(1, parseInt(e.target.value)))}
               min="1"
-              max="10"
               className="form-input w-20"
               disabled={isPlaying}
             />
@@ -908,9 +1116,8 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
             <input
               type="number"
               value={settings.trackingTime}
-              onChange={e => handleChange('trackingTime', Math.max(5, Math.min(30, parseInt(e.target.value))))}
-              min="5"
-              max="30"
+              onChange={e => handleChange('trackingTime', Math.max(1, parseInt(e.target.value)))}
+              min="1"
               className="form-input w-20"
               disabled={isPlaying}
             />
@@ -922,13 +1129,12 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
             <input
               type="number"
               value={settings.selectionTime}
-              onChange={e => handleChange('selectionTime', Math.max(3, Math.min(10, parseInt(e.target.value))))}
-              min="3"
-              max="10"
+              onChange={e => handleChange('selectionTime', Math.max(0, parseInt(e.target.value)))}
+              min="0"
               className="form-input w-20"
               disabled={isPlaying}
             />
-            <SettingTooltip text="Time to select target balls" />
+            <SettingTooltip text="Time to select target balls. Set to 0 for unlimited selection time (no timer)." />
           </div>
         </SettingsGroup>
 
@@ -1219,6 +1425,109 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
               </div>
             </div>
           )}
+        </SettingsGroup>
+
+        {/* Keybinds Section */}
+        <SettingsGroup title="Keybinds" defaultExpanded={false}>
+          <div className="space-y-4">
+            {/* Basic Controls */}
+            <SettingsGroup title="Basic Controls" defaultExpanded={true}>
+              <div className="space-y-4">
+                <div className="form-group">
+                  <label className="form-label">Start/Stop</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value="Space"
+                      readOnly
+                      className="form-input w-20 bg-muted/50"
+                    />
+                  </div>
+                  <SettingTooltip text="Start or stop the exercise" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Next Phase</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value="F"
+                      readOnly
+                      className="form-input w-20 bg-muted/50"
+                    />
+                  </div>
+                  <SettingTooltip text="Skip to the next phase of the exercise" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Focus Mode</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value="E"
+                      readOnly
+                      className="form-input w-20 bg-muted/50"
+                    />
+                  </div>
+                  <SettingTooltip text="Toggle fullscreen mode" />
+                </div>
+              </div>
+            </SettingsGroup>
+            
+            {/* Navigation Controls */}
+            <SettingsGroup title="Navigation Controls" defaultExpanded={false}>
+              <div className="space-y-4">
+                <div className="form-group">
+                  <label className="form-label">Navigate Balls</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value="Arrow Keys"
+                      readOnly
+                      className="form-input w-32 bg-muted/50"
+                    />
+                  </div>
+                  <SettingTooltip text="Use arrow keys to navigate between balls" />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Select Ball</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value="Enter"
+                      readOnly
+                      className="form-input w-20 bg-muted/50"
+                    />
+                  </div>
+                  <SettingTooltip text="Select the currently highlighted ball" />
+                </div>
+              </div>
+            </SettingsGroup>
+            
+            {/* Number Selection */}
+            <SettingsGroup title="Number Selection" defaultExpanded={false}>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground mb-2">
+                  During selection phase, press number keys to select balls directly:
+                </p>
+                
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                  <div key={num} className="form-group">
+                    <label className="form-label">Select Ball {num}</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={`${num}`}
+                        readOnly
+                        className="form-input w-20 bg-muted/50"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SettingsGroup>
+          </div>
         </SettingsGroup>
 
         {/* Advanced Section - Always visible */}
