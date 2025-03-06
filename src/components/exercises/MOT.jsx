@@ -12,6 +12,7 @@ import { Room } from './MOT/Room';
 import { Settings } from './MOT/Settings';
 import { NumberLabels } from './MOT/NumberLabels';
 import { ImprovedAnaglyphEffect } from './MOT/ImprovedAnaglyphEffect';
+import { History } from './MOT/History';
 
 function Ball({
   position,
@@ -925,7 +926,6 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selecte
 export default function MOT() {
   const [motAnalytics, setMotAnalytics] = useLocalStorage('mot_analytics', []);
   const [history, setHistory] = useLocalStorage('mot_history', []);
-  const [expandedHistoryItem, setExpandedHistoryItem] = useState(null);
   const [startTime, setStartTime] = useState(null);
   const [highlightedBallIndex, setHighlightedBallIndex] = useState(null);
 
@@ -1514,7 +1514,6 @@ const handleKeyNavigation = (key) => {
     
     // Update settings
     setSettings(finalSettings);
-    setExpandedHistoryItem(null);
     setGameState('setup');
     setShowingResults(false);
     setSelectedIndices([]);
@@ -1672,90 +1671,11 @@ The more accurately you identify the original balls, the higher your score!" />
 
 
           {history.length > 0 && (
-            <div className="bg-card rounded-xl p-6 shadow-lg mt-6">
-              <h3 className="text-lg font-medium mb-4">History</h3>
-              <div className="space-y-4">
-                {history.map((item, index) => (
-                  <div
-                    key={item.timestamp}
-                    className={cn(
-                      "p-4 rounded-lg border",
-                      item.results.correct === item.results.total
-                        ? "bg-success/10 border-success/20"
-                        : "bg-destructive/10 border-destructive/20"
-                    )}
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="space-y-1">
-                        <h4 className="font-medium">
-                          Score: {item.results.correct}/{item.results.total}
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(item.timestamp).toLocaleString()}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setExpandedHistoryItem(expandedHistoryItem === index ? null : index)}
-                        className="p-2 hover:bg-background/50 rounded-lg transition-colors"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className={cn(
-                            "w-4 h-4 transition-transform",
-                            expandedHistoryItem === index ? "transform rotate-180" : ""
-                          )}
-                        >
-                          <polyline points="6 9 12 15 18 9" />
-                        </svg>
-                      </button>
-                    </div>
-
-                    <AnimatePresence>
-                      {expandedHistoryItem === index && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="pt-4 border-t border-border mt-2 space-y-2">
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">Total Balls:</span>{" "}
-                              {item.settings.numBalls}
-                            </p>
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">Tracking Balls:</span>{" "}
-                              {item.settings.numTargets}
-                            </p>
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">Ball Speed:</span>{" "}
-                              {item.settings.physics?.speed || item.settings.velocity}
-                            </p>
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">Tracking Time:</span>{" "}
-                              {item.settings.trackingTime}s
-                            </p>
-                            <button
-                              onClick={() => useHistorySettings(item)}
-                              className="w-full mt-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors text-sm"
-                            >
-                              Use These Settings
-                            </button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <History
+              sessions={history}
+              defaultExpanded={false}
+              onUseSettings={useHistorySettings}
+            />
           )}
         </div>
       </div>
