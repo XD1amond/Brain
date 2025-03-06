@@ -63,6 +63,7 @@ export function Room({ settings }) {
   
   // Random wall color changes during tracking
   useFrame(() => {
+    // Only apply wall color changes during the tracking phase
     if (settings?.distractions?.wallColorChanges && gameState === 'tracking') {
       const changeSeparately = settings?.distractions?.wallColorChangesSeparate;
       const changeInSync = settings?.distractions?.wallColorChangesSync;
@@ -101,6 +102,14 @@ export function Room({ settings }) {
           setRightWallColor(newColor);
         }
       }
+    } else if (settings?.distractions?.wallColorChanges && gameState !== 'tracking') {
+      // Reset wall colors when not in tracking phase
+      const defaultColor = '#111111';
+      setFloorColor(defaultColor);
+      setCeilingColor(defaultColor);
+      setBackWallColor(defaultColor);
+      setLeftWallColor(defaultColor);
+      setRightWallColor(defaultColor);
     }
   });
 

@@ -29,77 +29,82 @@ function SettingsGroup({ title, children, defaultExpanded = false, visible = tru
 
 export function Settings({ settings, onSettingsChange, isPlaying }) {
   const handleChange = (key, value) => {
-    onSettingsChange(prev => ({
-      ...prev,
-      [key]: value
-    }));
+    onSettingsChange(prev => {
+      // Create a deep copy to avoid reference issues
+      const newSettings = JSON.parse(JSON.stringify(prev));
+      newSettings[key] = value;
+      return newSettings;
+    });
   };
 
   const handleNestedChange = (parentKey, key, value) => {
     onSettingsChange(prev => {
-      const parent = prev[parentKey] || {};
-      return {
-        ...prev,
-        [parentKey]: {
-          ...parent,
-          [key]: value
-        }
-      };
+      // Create a deep copy to avoid reference issues
+      const newSettings = JSON.parse(JSON.stringify(prev));
+      // Ensure parent object exists
+      if (!newSettings[parentKey]) newSettings[parentKey] = {};
+      // Update the nested value
+      newSettings[parentKey][key] = value;
+      return newSettings;
     });
   };
 
   const handleCrosshairChange = (key, value, subKey = null) => {
     onSettingsChange(prev => {
-      const crosshair = prev.crosshair || {
-        enabled: true,
-        color: { r: 255, g: 255, b: 255, a: 1 },
-        innerLines: { enabled: true, opacity: 1, length: 6, thickness: 2, offset: 3 },
-        outerLines: { enabled: true, opacity: 1, length: 2, thickness: 2, offset: 10 },
-        centerDot: { enabled: true, opacity: 1, thickness: 2 },
-        rotation: 0
-      };
-
-      if (subKey) {
-        return {
-          ...prev,
-          crosshair: {
-            ...crosshair,
-            [key]: {
-              ...crosshair[key],
-              [subKey]: value
-            }
-          }
+      // Create a deep copy to avoid reference issues
+      const newSettings = JSON.parse(JSON.stringify(prev));
+      
+      // Ensure crosshair object exists with default values
+      if (!newSettings.crosshair) {
+        newSettings.crosshair = {
+          enabled: true,
+          color: { r: 255, g: 255, b: 255, a: 1 },
+          innerLines: { enabled: true, opacity: 1, length: 6, thickness: 2, offset: 3 },
+          outerLines: { enabled: true, opacity: 1, length: 2, thickness: 2, offset: 10 },
+          centerDot: { enabled: true, opacity: 1, thickness: 2 },
+          rotation: 0
         };
       }
 
-      return {
-        ...prev,
-        crosshair: {
-          ...crosshair,
-          [key]: value
+      if (subKey) {
+        // Ensure the key object exists
+        if (!newSettings.crosshair[key]) {
+          newSettings.crosshair[key] = {};
         }
-      };
+        // Update the subkey
+        newSettings.crosshair[key][subKey] = value;
+      } else {
+        // Update the key directly
+        newSettings.crosshair[key] = value;
+      }
+
+      return newSettings;
     });
   };
 
   const handleRotationChange = (phase, axis, value) => {
     onSettingsChange(prev => {
-      const rotation = prev.rotation || {
-        selection: { x: 0, y: 0.5, z: 0, xBoomerang: 0, yBoomerang: 1, zBoomerang: 0 },
-        memorization: { x: 0, y: 0.5, z: 0, xBoomerang: 0, yBoomerang: 1, zBoomerang: 0 },
-        tracking: { x: 0, y: 0, z: 0, xBoomerang: 0, yBoomerang: 0, zBoomerang: 0 }
-      };
+      // Create a deep copy to avoid reference issues
+      const newSettings = JSON.parse(JSON.stringify(prev));
       
-      return {
-        ...prev,
-        rotation: {
-          ...rotation,
-          [phase]: {
-            ...rotation[phase],
-            [axis]: value
-          }
-        }
-      };
+      // Ensure rotation object exists with default values
+      if (!newSettings.rotation) {
+        newSettings.rotation = {
+          selection: { x: 0, y: 0.5, z: 0, xBoomerang: 0, yBoomerang: 1, zBoomerang: 0 },
+          memorization: { x: 0, y: 0.5, z: 0, xBoomerang: 0, yBoomerang: 1, zBoomerang: 0 },
+          tracking: { x: 0, y: 0, z: 0, xBoomerang: 0, yBoomerang: 0, zBoomerang: 0 }
+        };
+      }
+      
+      // Ensure the phase object exists
+      if (!newSettings.rotation[phase]) {
+        newSettings.rotation[phase] = { x: 0, y: 0, z: 0, xBoomerang: 0, yBoomerang: 0, zBoomerang: 0 };
+      }
+      
+      // Update the axis value
+      newSettings.rotation[phase][axis] = value;
+      
+      return newSettings;
     });
   };
 
@@ -184,6 +189,161 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
               disabled={isPlaying}
             />
           </div>
+          
+          <div className="form-group">
+            <label className="form-label">Speed</label>
+            <input
+              type="number"
+              value={physics.speed !== undefined ? physics.speed : (settings.velocity || 7)}
+              onChange={e => {
+                const speed = Math.max(0.1, parseFloat(e.target.value));
+                
+                // Use the onSettingsChange function to ensure proper state update
+                onSettingsChange(prev => {
+                  // Create a deep copy to avoid reference issues
+                  const newSettings = JSON.parse(JSON.stringify(prev));
+                  
+                  // Update both physics.speed and velocity
+                  if (!newSettings.physics) newSettings.physics = {};
+                  newSettings.physics.speed = speed;
+                  newSettings.velocity = speed;
+                  
+                  return newSettings;
+                });
+              }}
+              min="0.1"
+              step="0.1"
+              className="form-input w-20"
+              disabled={isPlaying}
+            />
+            <SettingTooltip text="Ball movement speed (0.1 to unlimited)" />
+          </div>
+          
+          {/* Auto Progression Section */}
+          <SettingsGroup title="Auto Progression" defaultExpanded={false}>
+            <div className="form-group">
+              <label className="form-label flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={settings.autoProgressionEnabled !== false}
+                  onChange={e => handleChange('autoProgressionEnabled', e.target.checked)}
+                  className="form-checkbox"
+                  disabled={isPlaying}
+                />
+                <span>Enable Auto Progression</span>
+              </label>
+              <SettingTooltip text="Automatically adjust speed based on performance" />
+            </div>
+            
+            {settings.autoProgressionEnabled !== false && (
+              <>
+                {/* Progress Status Bars */}
+                <div className="mt-4 mb-4 space-y-2">
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span>Advance Progress: {settings.advanceCount || 0}/{settings.thresholdAdvanceSessions || 1}</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500"
+                        style={{
+                          width: `${((settings.advanceCount || 0) / (settings.thresholdAdvanceSessions || 1)) * 100}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span>Fallback Progress: {settings.progressCount || 0}/{settings.thresholdFallbackSessions || 3}</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-red-500"
+                        style={{
+                          width: `${((settings.progressCount || 0) / (settings.thresholdFallbackSessions || 3)) * 100}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Advance Settings */}
+                <SettingsGroup title="Advance Settings" defaultExpanded={false}>
+                  <div className="form-group">
+                    <label className="form-label">Advance Threshold (%)</label>
+                    <input
+                      type="number"
+                      value={settings.thresholdAdvance || 80}
+                      onChange={e => handleChange('thresholdAdvance', Math.max(50, Math.min(100, parseInt(e.target.value))))}
+                      min="50"
+                      max="100"
+                      className="form-input w-20"
+                      disabled={isPlaying}
+                    />
+                    <SettingTooltip text="Percentage correct required to increase speed" />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">Sessions to Advance</label>
+                    <input
+                      type="number"
+                      value={settings.thresholdAdvanceSessions || 1}
+                      onChange={e => handleChange('thresholdAdvanceSessions', Math.max(1, parseInt(e.target.value)))}
+                      min="1"
+                      className="form-input w-20"
+                      disabled={isPlaying}
+                    />
+                    <SettingTooltip text="Consecutive sessions above threshold before increasing speed" />
+                  </div>
+                </SettingsGroup>
+                
+                {/* Fallback Settings */}
+                <SettingsGroup title="Fallback Settings" defaultExpanded={false}>
+                  <div className="form-group">
+                    <label className="form-label">Fallback Threshold (%)</label>
+                    <input
+                      type="number"
+                      value={settings.thresholdFallback || 50}
+                      onChange={e => handleChange('thresholdFallback', Math.max(0, Math.min(settings.thresholdAdvance - 1 || 79, parseInt(e.target.value))))}
+                      min="0"
+                      max={settings.thresholdAdvance - 1 || 79}
+                      className="form-input w-20"
+                      disabled={isPlaying}
+                    />
+                    <SettingTooltip text="Percentage correct below which speed will decrease" />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">Sessions to Fallback</label>
+                    <input
+                      type="number"
+                      value={settings.thresholdFallbackSessions || 3}
+                      onChange={e => handleChange('thresholdFallbackSessions', Math.max(1, parseInt(e.target.value)))}
+                      min="1"
+                      className="form-input w-20"
+                      disabled={isPlaying}
+                    />
+                    <SettingTooltip text="Consecutive sessions below threshold before decreasing speed" />
+                  </div>
+                </SettingsGroup>
+                
+                <div className="form-group mt-2">
+                  <label className="form-label">Speed Increment</label>
+                  <input
+                    type="number"
+                    value={settings.speedIncrement || 1}
+                    onChange={e => handleChange('speedIncrement', Math.max(0.1, parseFloat(e.target.value)))}
+                    min="0.1"
+                    step="0.1"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="How much to increase/decrease speed by" />
+                </div>
+              </>
+            )}
+          </SettingsGroup>
         </SettingsGroup>
 
         {/* Physics Section */}
@@ -203,24 +363,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
             <SettingTooltip text="Controls ball mass/density affecting collision physics" />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Speed</label>
-            <input
-              type="number"
-              value={physics.speed || ((physics.minSpeed + physics.maxSpeed) / 2)}
-              onChange={e => {
-                const speed = Math.max(1, parseInt(e.target.value));
-                handleNestedChange('physics', 'speed', speed);
-                // Also update min/max for backward compatibility
-                handleNestedChange('physics', 'minSpeed', speed);
-                handleNestedChange('physics', 'maxSpeed', speed);
-              }}
-              min="1"
-              className="form-input w-20"
-              disabled={isPlaying}
-            />
-            <SettingTooltip text="Ball movement speed" />
-          </div>
+          {/* Speed moved to Difficulty section */}
 
           <div className="form-group">
             <label className="form-label flex items-center space-x-2">
@@ -1431,7 +1574,7 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
         <SettingsGroup title="Keybinds" defaultExpanded={false}>
           <div className="space-y-4">
             {/* Basic Controls */}
-            <SettingsGroup title="Basic Controls" defaultExpanded={true}>
+            <SettingsGroup title="Basic Controls" defaultExpanded={false}>
               <div className="space-y-4">
                 <div className="form-group">
                   <label className="form-label">Start/Stop</label>
@@ -1548,19 +1691,38 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
           </div>
           
           {advancedMode && (
-            <div className="form-group mt-4">
-              <label className="form-label flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={settings.threeDGlasses ?? false}
-                  onChange={e => handleChange('threeDGlasses', e.target.checked)}
-                  className="form-checkbox"
-                  disabled={isPlaying}
-                />
-                <span>3D Glasses Mode</span>
-              </label>
-              <SettingTooltip text="Enable stereoscopic 3D mode (requires 3D glasses)" />
-            </div>
+            <>
+              <div className="form-group mt-4">
+                <label className="form-label flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.threeDGlasses ?? false}
+                    onChange={e => handleChange('threeDGlasses', e.target.checked)}
+                    className="form-checkbox"
+                    disabled={isPlaying}
+                  />
+                  <span>3D Glasses Mode</span>
+                </label>
+                <SettingTooltip text="Enable stereoscopic 3D mode (requires 3D glasses)" />
+              </div>
+              
+              {settings.threeDGlasses && (
+                <div className="form-group mt-2">
+                  <label className="form-label">3D Disparity</label>
+                  <input
+                    type="number"
+                    value={settings.threeDDisparity ?? 0.064}
+                    onChange={e => handleChange('threeDDisparity', Math.max(0.01, Math.min(0.2, parseFloat(e.target.value))))}
+                    min="0.01"
+                    max="0.2"
+                    step="0.01"
+                    className="form-input w-20"
+                    disabled={isPlaying}
+                  />
+                  <SettingTooltip text="Adjust the 3D effect strength (higher values = stronger effect)" />
+                </div>
+              )}
+            </>
           )}
         </SettingsGroup>
       </div>

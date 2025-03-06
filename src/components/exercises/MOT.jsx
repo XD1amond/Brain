@@ -10,6 +10,8 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { getTodayDate } from '@/lib/dateUtils';
 import { Room } from './MOT/Room';
 import { Settings } from './MOT/Settings';
+import { NumberLabels } from './MOT/NumberLabels';
+import { ImprovedAnaglyphEffect } from './MOT/ImprovedAnaglyphEffect';
 
 function Ball({
   position,
@@ -164,8 +166,9 @@ function Ball({
     return () => unsubscribe();
   }, [api, actualVelocity, ballSize, settings.room]);
   
-  // Handle ball appearance distractions
+  // Handle ball appearance distractions - ONLY during tracking phase
   useFrame(() => {
+    // Only apply distractions during the tracking phase
     if (currentGameState === 'tracking') {
       // Random color changes
       if (distractions.colorChanges) {
@@ -249,6 +252,15 @@ function Ball({
           }
         }
       } else if (!distractions.sizeChanges && ballSize !== defaultSize) {
+        setBallSize(defaultSize);
+        api.setRadius(defaultSize);
+      }
+    } else {
+      // Reset appearance when not in tracking phase
+      if (distractions.colorChanges) {
+        setBallColor('#ffffff');
+      }
+      if (distractions.sizeChanges && ballSize !== defaultSize) {
         setBallSize(defaultSize);
         api.setRadius(defaultSize);
       }
@@ -370,37 +382,10 @@ function Ball({
     }
   };
 
-  // Create a number label for the ball during selection phase
+  // We no longer render number labels directly on the balls
+  // Instead, we'll use a separate component for numbers in the Scene
   const renderNumberLabel = () => {
-    if (currentGameState !== 'selection' || showingResults) return null;
-    
-    // Only show numbers 1-8
-    if (index >= 8) return null;
-    
-    // Create a text label with the ball number (1-indexed)
-    const ballNumber = index + 1;
-    
-    // Use a billboard effect to always face the camera
-    return (
-      <group>
-        <mesh position={[0, ballSize * 1.5, 0]}>
-          <sphereGeometry args={[ballSize * 0.4, 16, 16]} />
-          <meshBasicMaterial color="#000000" opacity={0.7} transparent />
-        </mesh>
-        <Text
-          position={[0, ballSize * 1.5, 0]}
-          fontSize={ballSize * 0.7}
-          color="#ffffff"
-          anchorX="center"
-          anchorY="middle"
-          depthOffset={-10}
-          renderOrder={1000}
-          billboard
-        >
-          {ballNumber.toString()}
-        </Text>
-      </group>
-    );
+    return null;
   };
 
   return (
@@ -408,6 +393,7 @@ function Ball({
       <mesh
         ref={ref}
         onClick={isSelectable ? onClick : undefined}
+        uuid={`ball-${index}`}
       >
         <sphereGeometry args={[ballSize, 32, 32]} />
         <meshPhongMaterial
@@ -531,11 +517,16 @@ function CameraController({ settings, gameState }) {
     if (!settings.rotation) return { x: 0, y: 0, z: 0, xBoomerang: 0, yBoomerang: 0, zBoomerang: 0 };
     
     if (currentGameState === 'ready') {
-      return settings.rotation.selection || { x: 0, y: 0.5, z: 0, xBoomerang: 0, yBoomerang: 1, zBoomerang: 0 };
+      // Ready phase uses memorization settings
+      // Fix: Use the correct settings for memorization phase
+      return settings.rotation.memorization || { x: 0, y: 0.5, z: 0, xBoomerang: 0, yBoomerang: 0.5, zBoomerang: 0 };
     } else if (currentGameState === 'tracking') {
+      // Tracking phase uses tracking settings
       return settings.rotation.tracking || { x: 0, y: 0, z: 0, xBoomerang: 0, yBoomerang: 0, zBoomerang: 0 };
     } else if (currentGameState === 'selection') {
-      return settings.rotation.memorization || { x: 0, y: 0.5, z: 0, xBoomerang: 0, yBoomerang: 1, zBoomerang: 0 };
+      // Selection phase uses selection settings
+      // Fix: Use the correct settings for selection phase
+      return settings.rotation.selection || { x: 0, y: 0.3, z: 0, xBoomerang: 0, yBoomerang: 0.5, zBoomerang: 0 };
     }
     
     return { x: 0, y: 0, z: 0, xBoomerang: 0, yBoomerang: 0, zBoomerang: 0 };
@@ -560,11 +551,17 @@ function CameraController({ settings, gameState }) {
     const handleMouseMove = (e) => {
       if (!isDraggingRef.current) return;
       
+      // Calculate deltas with proper sensitivity
       const deltaX = (e.clientX - previousMousePositionRef.current.x) * 0.01 * mouseSensitivity;
       const deltaY = (e.clientY - previousMousePositionRef.current.y) * 0.01 * mouseSensitivity;
       
-      rotationRef.current.y += deltaX;
-      rotationRef.current.x += deltaY;
+      // Apply rotation in the correct direction
+      // When dragging left, camera should rotate left (negative Y)
+      // When dragging right, camera should rotate right (positive Y)
+      rotationRef.current.y -= deltaX; // Invert X axis movement
+      // When dragging up, camera should rotate up (negative X)
+      // When dragging down, camera should rotate down (positive X)
+      rotationRef.current.x += deltaY; // Don't invert Y axis movement
       
       previousMousePositionRef.current = { x: e.clientX, y: e.clientY };
     };
@@ -646,6 +643,7 @@ function ScreenFlash({ settings, gameState }) {
   
   // Use regular React useEffect + setTimeout instead of setInterval for better performance
   useEffect(() => {
+    // Only enable screen flash during tracking phase
     if (gameState !== 'tracking' || !settings?.distractions?.screenFlash) {
       setFlashOpacity(0); // Ensure flash is off when not tracking
       return;
@@ -706,176 +704,88 @@ function ScreenFlash({ settings, gameState }) {
 }
 
 // 3D Glasses effect using AnaglyphEffect from three.js
-function ThreeDGlassesEffect({ enabled }) {
+function ThreeDGlassesEffect({ enabled, settings }) {
   const { gl, scene, camera } = useThree();
   const effectRef = useRef(null);
   const originalRenderRef = useRef(null);
+  const isInitializedRef = useRef(false);
+  
+  // Get the 3D disparity setting or use default
+  const disparity = settings?.threeDDisparity || 0.064;
   
   useEffect(() => {
-    // Store the original render method if we haven't already
-    if (!originalRenderRef.current) {
-      originalRenderRef.current = gl.render.bind(gl);
+    // Prevent multiple initializations
+    if (isInitializedRef.current && !enabled) {
+      // If already initialized and now disabled, clean up
+      if (effectRef.current) {
+        // Restore original render method
+        if (originalRenderRef.current) {
+          gl.render = originalRenderRef.current;
+        }
+        effectRef.current.dispose();
+        effectRef.current = null;
+      }
+      isInitializedRef.current = false;
+      return;
     }
     
-    // Clean up any existing effect
-    if (effectRef.current) {
-      // Restore original render method
-      gl.render = originalRenderRef.current;
-      effectRef.current.dispose();
-      effectRef.current = null;
-    }
-    
-    // If not enabled, just return
-    if (!enabled) {
+    // If already initialized or not enabled, do nothing
+    if (isInitializedRef.current || !enabled) {
       return;
     }
     
     try {
+      // Store the original render method
+      originalRenderRef.current = gl.render.bind(gl);
+      
       // Get the renderer size
       const size = gl.getSize(new THREE.Vector2());
       
-      // Create the anaglyph effect using the imported class
-      const anaglyphEffect = new AnaglyphEffect(gl, size.width, size.height);
+      // Create the anaglyph effect with the disparity setting
+      const anaglyphEffect = new ImprovedAnaglyphEffect(gl, size.width, size.height, disparity);
       
       // Store the effect
       effectRef.current = anaglyphEffect;
       
-      // Override the render method
-      gl.render = function(scene, camera) {
-        if (effectRef.current) {
-          effectRef.current.render(scene, camera);
+      // Override the render method - use a wrapper function to avoid recursion
+      gl.render = function(sceneToRender, cameraToRender) {
+        if (effectRef.current && sceneToRender && cameraToRender) {
+          effectRef.current.render(sceneToRender, cameraToRender);
         } else {
-          originalRenderRef.current(scene, camera);
+          originalRenderRef.current(sceneToRender, cameraToRender);
         }
       };
+      
+      isInitializedRef.current = true;
     } catch (error) {
       console.error("Failed to initialize 3D glasses effect:", error);
     }
     
     return () => {
-      // Restore original render method
-      if (originalRenderRef.current) {
-        gl.render = originalRenderRef.current;
-      }
-      
-      // Dispose resources
+      // Cleanup on unmount
       if (effectRef.current) {
+        // Restore original render method
+        if (originalRenderRef.current) {
+          gl.render = originalRenderRef.current;
+        }
         effectRef.current.dispose();
         effectRef.current = null;
       }
+      isInitializedRef.current = false;
     };
-  }, [enabled, gl, scene, camera]);
+  }, [enabled, gl, disparity]);
+  
+  // Update disparity when it changes
+  useEffect(() => {
+    if (effectRef.current && isInitializedRef.current && enabled) {
+      effectRef.current.setDisparity(disparity);
+    }
+  }, [disparity, enabled]);
   
   return null;
 }
 
-// AnaglyphEffect implementation from three.js
-class AnaglyphEffect {
-  constructor(renderer, width = 512, height = 512) {
-    // Dubois matrices from https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.7.6968&rep=rep1&type=pdf#page=4
-    this.colorMatrixLeft = new THREE.Matrix3().fromArray([
-      0.456100, -0.0400822, -0.0152161,
-      0.500484, -0.0378246, -0.0205971,
-      0.176381, -0.0157589, -0.00546856
-    ]);
-
-    this.colorMatrixRight = new THREE.Matrix3().fromArray([
-      -0.0434706, 0.378476, -0.0721527,
-      -0.0879388, 0.73364, -0.112961,
-      -0.00155529, -0.0184503, 1.2264
-    ]);
-
-    const _stereo = new THREE.StereoCamera();
-    _stereo.eyeSep = 0.064; // Eye separation
-
-    const _params = {
-      minFilter: THREE.LinearFilter,
-      magFilter: THREE.NearestFilter,
-      format: THREE.RGBAFormat
-    };
-
-    const _renderTargetL = new THREE.WebGLRenderTarget(width, height, _params);
-    const _renderTargetR = new THREE.WebGLRenderTarget(width, height, _params);
-
-    const _material = new THREE.ShaderMaterial({
-      uniforms: {
-        mapLeft: { value: _renderTargetL.texture },
-        mapRight: { value: _renderTargetR.texture },
-        colorMatrixLeft: { value: this.colorMatrixLeft },
-        colorMatrixRight: { value: this.colorMatrixRight }
-      },
-      vertexShader: [
-        'varying vec2 vUv;',
-        'void main() {',
-        '  vUv = vec2(uv.x, uv.y);',
-        '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
-        '}'
-      ].join('\n'),
-      fragmentShader: [
-        'uniform sampler2D mapLeft;',
-        'uniform sampler2D mapRight;',
-        'varying vec2 vUv;',
-        'uniform mat3 colorMatrixLeft;',
-        'uniform mat3 colorMatrixRight;',
-        'void main() {',
-        '  vec2 uv = vUv;',
-        '  vec4 colorL = texture2D(mapLeft, uv);',
-        '  vec4 colorR = texture2D(mapRight, uv);',
-        '  vec3 color = clamp(',
-        '    colorMatrixLeft * colorL.rgb +',
-        '    colorMatrixRight * colorR.rgb, 0., 1.);',
-        '  gl_FragColor = vec4(',
-        '    color.r, color.g, color.b,',
-        '    max(colorL.a, colorR.a));',
-        '}'
-      ].join('\n')
-    });
-
-    // Create a separate scene for the anaglyph effect
-    const anaglyphScene = new THREE.Scene();
-    const anaglyphMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), _material);
-    anaglyphScene.add(anaglyphMesh);
-    const anaglyphCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-
-    this.setSize = function(width, height) {
-      const pixelRatio = renderer.getPixelRatio();
-      _renderTargetL.setSize(width * pixelRatio, height * pixelRatio);
-      _renderTargetR.setSize(width * pixelRatio, height * pixelRatio);
-    };
-
-    this.render = function(scene, camera) {
-      const currentRenderTarget = renderer.getRenderTarget();
-
-      if (scene.matrixWorldAutoUpdate === true) scene.updateMatrixWorld();
-      if (camera.parent === null && camera.matrixWorldAutoUpdate === true) camera.updateMatrixWorld();
-
-      _stereo.update(camera);
-
-      renderer.setRenderTarget(_renderTargetL);
-      renderer.clear();
-      renderer.render(scene, _stereo.cameraL);
-
-      renderer.setRenderTarget(_renderTargetR);
-      renderer.clear();
-      renderer.render(scene, _stereo.cameraR);
-
-      renderer.setRenderTarget(null);
-      renderer.clear();
-      
-      // Render the anaglyph effect using the original renderer's render method
-      renderer.render(anaglyphScene, anaglyphCamera);
-
-      renderer.setRenderTarget(currentRenderTarget);
-    };
-
-    this.dispose = function() {
-      _renderTargetL.dispose();
-      _renderTargetR.dispose();
-      _material.dispose();
-      anaglyphMesh.geometry.dispose();
-    };
-  }
-}
+// The ImprovedAnaglyphEffect class has been moved to a separate file
 
 // Global jitter controller for all balls
 function GlobalJitterController({ settings, gameState, api }) {
@@ -928,8 +838,21 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selecte
   // Set up key navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Prevent default behavior for game control keys
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' ', 'e', 'E', 'f', 'F', '1', '2', '3', '4', '5', '6', '7', '8'].includes(e.key)) {
+      // For number keys 1-8, only prevent default and handle them during selection phase
+      const numberKeys = ['1', '2', '3', '4', '5', '6', '7', '8'];
+      
+      if (numberKeys.includes(e.key)) {
+        // Only prevent default for number keys during selection phase
+        if (gameState === 'selection' && !showingResults) {
+          e.preventDefault();
+          onKeyNavigation(e.key);
+        }
+        // Otherwise, allow default behavior (typing in input fields)
+        return;
+      }
+      
+      // For other control keys, always prevent default
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' ', 'e', 'E', 'f', 'F'].includes(e.key)) {
         e.preventDefault();
         onKeyNavigation(e.key);
       }
@@ -937,7 +860,7 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selecte
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onKeyNavigation]);
+  }, [onKeyNavigation, gameState, showingResults]);
   
   return (
     <>
@@ -948,7 +871,7 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selecte
         fov={60}
       />
       <CameraController settings={settings} gameState={gameState} />
-      <ThreeDGlassesEffect enabled={settings.threeDGlasses} />
+      <ThreeDGlassesEffect enabled={settings.threeDGlasses} settings={settings} />
       <Crosshair settings={settings} />
       <ambientLight intensity={0.2} />
       <pointLight position={[0, 0, 10]} intensity={0.5} />
@@ -989,6 +912,12 @@ function Scene({ balls, targetIndices, gameState, onBallClick, velocity, selecte
             highlightedBallIndex={highlightedBallIndex}
           />
         ))}
+        {/* Add the number labels as a separate component */}
+        <NumberLabels
+          balls={balls}
+          gameState={gameState}
+          showingResults={showingResults}
+        />
       </Physics>
     </>
   );
@@ -1008,13 +937,22 @@ export default function MOT() {
     selectionTime: 0,
     velocity: 7,
     advancedMode: false,
+    // Auto progression settings
+    autoProgressionEnabled: true,
+    thresholdAdvance: 80,
+    thresholdFallback: 50,
+    thresholdFallbackSessions: 3,
+    progressCount: 0, // Track consecutive sessions below threshold
+    thresholdAdvanceSessions: 1, // Number of consecutive sessions above threshold before increasing level
+    advanceCount: 0, // Track consecutive sessions above threshold
+    speedIncrement: 1, // How much to increase/decrease speed by
     physics: {
       ballDensity: 1,
       speed: 7,
       minSpeed: 7, // For backward compatibility
       maxSpeed: 7, // For backward compatibility
       collisionEnabled: true,
-      movementPattern: 'regular',
+      movementPattern: 'individualJitter',
       jitterIntensity: 5
     },
     distractions: {
@@ -1067,28 +1005,40 @@ export default function MOT() {
       },
       rotation: 0
     },
-    threeDGlasses: false
+    threeDGlasses: false,
+    threeDDisparity: 0.064
   };
 
-  const [settings, setSettings] = useLocalStorage('mot-settings', defaultSettings);
+  const [settings, setSettings] = useLocalStorage('mot_settings', defaultSettings);
 
   // Ensure all settings exist (for users with existing settings)
   useEffect(() => {
-    const updatedSettings = { ...defaultSettings };
+    // Create a deep copy of the settings to avoid reference issues
+    const updatedSettings = JSON.parse(JSON.stringify(defaultSettings));
     
-    // Preserve user's existing settings
-    if (settings.numBalls) updatedSettings.numBalls = settings.numBalls;
-    if (settings.numTargets) updatedSettings.numTargets = settings.numTargets;
-    if (settings.rememberTime) updatedSettings.rememberTime = settings.rememberTime;
-    if (settings.trackingTime) updatedSettings.trackingTime = settings.trackingTime;
-    if (settings.selectionTime) updatedSettings.selectionTime = settings.selectionTime;
-    if (settings.velocity) updatedSettings.velocity = settings.velocity;
-    if (settings.crosshair) updatedSettings.crosshair = { ...defaultSettings.crosshair, ...settings.crosshair };
+    // Deep merge function to recursively merge objects
+    const deepMerge = (target, source) => {
+      for (const key in source) {
+        if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+          // If property doesn't exist in target, create it
+          if (!target[key]) target[key] = {};
+          // Recursively merge objects
+          deepMerge(target[key], source[key]);
+        } else {
+          // For primitive values and arrays, just copy over
+          if (source[key] !== undefined) {
+            target[key] = source[key];
+          }
+        }
+      }
+      return target;
+    };
     
-    // Only update if there are missing settings
-    if (!settings.physics || !settings.rotation || !settings.room || !settings.distractions) {
-      setSettings(updatedSettings);
-    }
+    // Merge existing user settings with defaults
+    const mergedSettings = deepMerge(updatedSettings, settings);
+    
+    // Always update settings to ensure all properties are properly initialized
+    setSettings(mergedSettings);
   }, []);
   
   const [gameState, setGameState] = useState('setup');
@@ -1277,14 +1227,41 @@ const handleKeyNavigation = (key) => {
   
   // Handle 'E' key for fullscreen
   if (key === 'e' || key === 'E') {
-    // Toggle fullscreen
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
+    // Toggle fullscreen for the canvas element directly
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+      if (!document.fullscreenElement) {
+        // Apply styles to make canvas fill the screen
+        canvas.style.position = 'fixed';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.width = '100vw';
+        canvas.style.height = '100vh';
+        canvas.style.zIndex = '9999';
+        
+        canvas.requestFullscreen().catch(err => {
+          console.error(`Error attempting to enable fullscreen: ${err.message}`);
+          // Reset styles if fullscreen fails
+          canvas.style = '';
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().then(() => {
+            // Reset styles after exiting fullscreen
+            setTimeout(() => {
+              const canvas = document.querySelector('canvas');
+              if (canvas) {
+                canvas.style = '';
+              }
+            }, 100);
+          }).catch(() => {
+            // Reset styles even if exitFullscreen fails
+            const canvas = document.querySelector('canvas');
+            if (canvas) {
+              canvas.style = '';
+            }
+          });
+        }
       }
     }
     return;
@@ -1390,15 +1367,102 @@ const handleKeyNavigation = (key) => {
     // Record analytics data only if we have a start time
     if (startTime) {
       const duration = (Date.now() - startTime) / 1000 / 60; // Convert ms to minutes
+      const percentageCorrect = (correct / settings.numTargets) * 100;
+      
+      // Handle auto progression if enabled
+      if (settings.autoProgressionEnabled) {
+        // Create a deep copy of settings to avoid reference issues
+        let newSettings = JSON.parse(JSON.stringify(settings));
+        
+        if (percentageCorrect >= settings.thresholdAdvance) {
+          // Increment advance count for consecutive sessions above threshold
+          const currentAdvanceCount = Number(settings.advanceCount || 0);
+          const advanceThreshold = Number(settings.thresholdAdvanceSessions || 1);
+          newSettings.advanceCount = currentAdvanceCount + 1;
+          
+          // If we've reached the threshold for consecutive sessions above threshold
+          if (Number(newSettings.advanceCount) >= advanceThreshold) {
+            // Increase speed
+            const currentSpeed = newSettings.physics.speed || 7;
+            const speedIncrement = newSettings.speedIncrement || 0.5;
+            const newSpeed = currentSpeed + speedIncrement;
+            
+            // Ensure physics object exists
+            if (!newSettings.physics) newSettings.physics = {};
+            
+            newSettings.physics = {
+              ...newSettings.physics,
+              speed: newSpeed,
+              minSpeed: newSpeed, // For backward compatibility
+              maxSpeed: newSpeed  // For backward compatibility
+            };
+            
+            console.log(`Great job! Speed increased to ${newSpeed}`);
+            
+            // Reset advance count
+            newSettings.advanceCount = 0;
+          }
+          
+          // Reset fallback count
+          newSettings.progressCount = 0;
+        }
+        else if (percentageCorrect < settings.thresholdFallback) {
+          // Increment progress count for consecutive sessions below threshold
+          const currentCount = Number(settings.progressCount || 0);
+          newSettings.progressCount = currentCount + 1;
+          
+          // Reset advance count since we're below threshold
+          newSettings.advanceCount = 0;
+          
+          // If we've reached the threshold for consecutive sessions below threshold
+          if (Number(newSettings.progressCount) >= Number(settings.thresholdFallbackSessions || 3)) {
+            // Decrease speed, but not below 0.1
+            const currentSpeed = newSettings.physics.speed || 7;
+            const speedIncrement = newSettings.speedIncrement || 0.5;
+            const newSpeed = Math.max(0.1, currentSpeed - speedIncrement);
+            
+            // Ensure physics object exists
+            if (!newSettings.physics) newSettings.physics = {};
+            
+            newSettings.physics = {
+              ...newSettings.physics,
+              speed: newSpeed,
+              minSpeed: newSpeed, // For backward compatibility
+              maxSpeed: newSpeed  // For backward compatibility
+            };
+            
+            console.log(`Speed decreased to ${newSpeed}`);
+            
+            // Reset progress count
+            newSettings.progressCount = 0;
+          }
+        }
+        else {
+          // Score is between thresholds, reset both counts
+          newSettings.progressCount = 0;
+          newSettings.advanceCount = 0;
+        }
+        
+        // Update settings with a new object to ensure state update
+        setSettings(newSettings);
+      }
+      
       const session = {
         exercise: 'mot',
         timestamp: Date.now(),
         date: getTodayDate(),
         duration,
         metrics: {
-          percentageCorrect: (correct / settings.numTargets) * 100,
+          percentageCorrect,
           totalBalls: settings.numBalls,
-          trackingBalls: settings.numTargets
+          trackingBalls: settings.numTargets,
+          speed: settings.physics.speed || 7,
+          // Auto progression metrics
+          autoProgressionEnabled: settings.autoProgressionEnabled,
+          thresholdAdvance: settings.thresholdAdvance,
+          thresholdFallback: settings.thresholdFallback,
+          progressCount: settings.progressCount || 0,
+          advanceCount: settings.advanceCount || 0
         }
       };
       setMotAnalytics(prev => [...prev, session]);
@@ -1411,7 +1475,8 @@ const handleKeyNavigation = (key) => {
           correct,
           total: settings.numTargets,
           duration,
-          percentageCorrect: (correct / settings.numTargets) * 100
+          percentageCorrect,
+          speed: settings.physics.speed || 7
         }
       };
       setHistory(prev => [historyItem, ...prev]);
@@ -1420,7 +1485,35 @@ const handleKeyNavigation = (key) => {
   };
 
   const useHistorySettings = (historyItem) => {
-    setSettings(historyItem.settings);
+    // Create a deep copy of the history settings to avoid reference issues
+    const historicalSettings = JSON.parse(JSON.stringify(historyItem.settings));
+    
+    // Merge with default settings to ensure all properties exist
+    const mergedSettings = { ...defaultSettings };
+    
+    // Deep merge function to recursively merge objects
+    const deepMerge = (target, source) => {
+      for (const key in source) {
+        if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+          // If property doesn't exist in target, create it
+          if (!target[key]) target[key] = {};
+          // Recursively merge objects
+          deepMerge(target[key], source[key]);
+        } else {
+          // For primitive values and arrays, just copy over
+          if (source[key] !== undefined) {
+            target[key] = source[key];
+          }
+        }
+      }
+      return target;
+    };
+    
+    // Apply historical settings while ensuring all required properties exist
+    const finalSettings = deepMerge(mergedSettings, historicalSettings);
+    
+    // Update settings
+    setSettings(finalSettings);
     setExpandedHistoryItem(null);
     setGameState('setup');
     setShowingResults(false);
@@ -1439,13 +1532,18 @@ const handleKeyNavigation = (key) => {
             <div className="absolute top-4 left-4 right-4 z-10">
               <div className="h-1 bg-background/20 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-primary transition-all duration-1000 ease-linear"
+                  className="h-full bg-primary"
                   style={{
                     width: `${(timeLeft / (
                       gameState === 'ready' ? settings.rememberTime :
                       gameState === 'tracking' ? settings.trackingTime :
                       settings.selectionTime
-                    )) * 100}%`
+                    )) * 100}%`,
+                    transition: timeLeft === (
+                      gameState === 'ready' ? settings.rememberTime :
+                      gameState === 'tracking' ? settings.trackingTime :
+                      settings.selectionTime
+                    ) ? 'none' : 'width 950ms linear'
                   }}
                 />
               </div>
@@ -1467,7 +1565,7 @@ The more accurately you identify the original balls, the higher your score!" />
                 targetIndices={targetIndices}
                 gameState={gameState}
                 onBallClick={handleBallClick}
-                velocity={gameState === 'tracking' ? settings.velocity : 0}
+                velocity={gameState === 'tracking' ? (settings.physics?.speed || settings.velocity) : 0}
                 selectedIndices={selectedIndices}
                 showingResults={showingResults}
                 settings={{...settings, gameState}} // Pass gameState as part of settings
@@ -1638,7 +1736,7 @@ The more accurately you identify the original balls, the higher your score!" />
                             </p>
                             <p className="text-sm">
                               <span className="text-muted-foreground">Ball Speed:</span>{" "}
-                              {item.settings.velocity}
+                              {item.settings.physics?.speed || item.settings.velocity}
                             </p>
                             <p className="text-sm">
                               <span className="text-muted-foreground">Tracking Time:</span>{" "}
