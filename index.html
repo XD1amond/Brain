@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="brain.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Brain Training</title>
     <!-- Preload critical fonts -->
     <link
@@ -31,11 +31,23 @@
         margin: 0;
         padding: 0;
         background: var(--background);
+        overscroll-behavior: none; /* Prevent pull-to-refresh on mobile */
       }
       #root {
         min-height: 100vh;
         display: flex;
         flex-direction: column;
+      }
+      /* Mobile touch optimizations */
+      @media (max-width: 768px) {
+        * {
+          touch-action: manipulation; /* Improve touch response */
+        }
+        button {
+          -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+          touch-action: manipulation;
+          min-height: 44px; /* Ensure touch targets are large enough */
+        }
       }
     </style>
   </head>

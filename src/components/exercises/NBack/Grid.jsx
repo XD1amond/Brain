@@ -400,7 +400,12 @@ export function Grid3D({ position, color, isActive, number, shape, positionEnabl
   );
 }
 
-export function Grid2D({ position, color, number, shape, forced, positionEnabled }) {
+export function Grid2D({ position, color, number, shape, forced, positionEnabled, isMobile }) {
+  const gridSize = isMobile ? 250 : 300;
+  const cellSize = isMobile ? 75 : 90;
+  const singleCellSize = isMobile ? 120 : 150;
+  const shapeSize = isMobile ? 100 : 120;
+
   // If position isn't selected in settings, display a single cell
   if (!positionEnabled) {
     return (
@@ -410,23 +415,28 @@ export function Grid2D({ position, color, number, shape, forced, positionEnabled
             Forced
           </div>
         )}
-        <div className="w-[300px] h-[300px] mx-auto flex items-center justify-center">
+        <div className={`w-[${gridSize}px] h-[${gridSize}px] mx-auto flex items-center justify-center`}>
           <div
             className={cn(
-              "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl w-[150px] h-[150px]",
+              "rounded-lg transition-all duration-300 flex items-center justify-center",
+              isMobile ? "text-xl" : "text-2xl",
               (number || shape) ? "bg-[color:var(--active-color)] text-white" : "bg-card dark:bg-muted border border-border text-transparent"
             )}
-            style={{ '--active-color': color }}
+            style={{
+              '--active-color': color,
+              width: `${singleCellSize}px`,
+              height: `${singleCellSize}px`
+            }}
           >
             {/* Only show content if there's actual content to display */}
             {(number || shape) && (
               <div className="relative w-full h-full flex items-center justify-center">
                 {shape && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Shape type={shape} size={120} />
+                    <Shape type={shape} size={shapeSize} />
                   </div>
                 )}
-                <div className="relative z-10 font-bold text-3xl" style={{ color: "white" }}>
+                <div className={cn("relative z-10 font-bold", isMobile ? "text-2xl" : "text-3xl")} style={{ color: "white" }}>
                   {number}
                 </div>
               </div>
@@ -445,7 +455,13 @@ export function Grid2D({ position, color, number, shape, forced, positionEnabled
           Forced
         </div>
       )}
-      <div className="grid grid-cols-3 gap-2 w-[300px] h-[300px] mx-auto">
+      <div
+        className="grid grid-cols-3 gap-2 mx-auto"
+        style={{
+          width: `${gridSize}px`,
+          height: `${gridSize}px`
+        }}
+      >
         {Array(9).fill().map((_, i) => {
           const x = i % 3;
           const y = Math.floor(i / 3);
@@ -459,20 +475,24 @@ export function Grid2D({ position, color, number, shape, forced, positionEnabled
             <div
               key={i}
               className={cn(
-                "rounded-lg transition-all duration-300 flex items-center justify-center text-2xl h-[90px]",
+                "rounded-lg transition-all duration-300 flex items-center justify-center",
+                isMobile ? "text-xl" : "text-2xl",
                 active ? "bg-[color:var(--active-color)] text-white" : "bg-card dark:bg-muted border border-border",
                 !active && "text-transparent"
               )}
-              style={{ '--active-color': color }}
+              style={{
+                '--active-color': color,
+                height: `${cellSize}px`
+              }}
             >
               {active && (
                 <div className="relative w-full h-full flex items-center justify-center">
                   {shape && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <Shape type={shape} />
+                      <Shape type={shape} size={isMobile ? 70 : 80} />
                     </div>
                   )}
-                  <div className="relative z-10 font-bold text-3xl" style={{ color: "white" }}>
+                  <div className={cn("relative z-10 font-bold", isMobile ? "text-2xl" : "text-3xl")} style={{ color: "white" }}>
                     {number}
                   </div>
                 </div>

@@ -68,7 +68,7 @@ function SettingsGroup({ title, children, defaultExpanded = false }) {
   );
 }
 
-export function Settings({ settings, onSettingsChange, isPlaying }) {
+export function Settings({ settings, onSettingsChange, isPlaying, isMobile }) {
   const handleChange = (key, value) => {
     onSettingsChange(prev => ({
       ...prev,
@@ -90,9 +90,9 @@ export function Settings({ settings, onSettingsChange, isPlaying }) {
   const advancedMode = settings.advancedMode || false;
 
   return (
-    <div className="space-y-6 bg-card rounded-xl p-6 shadow-lg">
+    <div className={cn("space-y-6 bg-card rounded-xl shadow-lg", isMobile ? "p-4" : "p-6")}>
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Settings</h2>
+        <h2 className={cn("font-bold", isMobile ? "text-xl" : "text-2xl")}>Settings</h2>
       </div>
 
       <div className="space-y-4">

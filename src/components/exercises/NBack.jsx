@@ -29,6 +29,24 @@ function getNBackType(stimuli) {
 export default function NBack() {
   const [nbackHistory, setNbackHistory] = useLocalStorage('nback_history', []);
   const [focusMode, setFocusMode] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
+  
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Initial check
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   const [settings, setSettings] = useLocalStorage('nback-settings', {
     is3D: false,
@@ -772,10 +790,29 @@ export default function NBack() {
     }
   }, [isPlaying, settings.stimuli, checkMatch]);
 
+  // Handle touch events for mobile devices
+  const handleTouchStart = useCallback((e) => {
+    // Prevent default behavior to avoid scrolling
+    if (isPlaying) {
+      e.preventDefault();
+    }
+  }, [isPlaying]);
+
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [handleKeyPress]);
+    
+    // Add touch event listeners for mobile
+    if (isMobile) {
+      document.addEventListener('touchstart', handleTouchStart, { passive: false });
+    }
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+      if (isMobile) {
+        document.removeEventListener('touchstart', handleTouchStart);
+      }
+    };
+  }, [handleKeyPress, handleTouchStart, isMobile]);
 
   return (
     <div className={cn("min-h-screen bg-background", focusMode && "overflow-hidden")}>
@@ -796,9 +833,14 @@ export default function NBack() {
             
             {/* Main content area */}
             <div className="flex-1 flex items-center justify-center relative">
-              {/* Score panel - positioned on the left and vertically centered */}
+              {/* Score panel - positioned appropriately based on device */}
               {settings.focusElements?.score && (
-                <div className="absolute left-8 top-1/2 -translate-y-1/2 bg-card rounded-xl p-4 shadow-lg w-[250px] z-10">
+                <div className={cn(
+                  "bg-card rounded-xl p-4 shadow-lg z-10",
+                  isMobile
+                    ? "absolute top-0 left-0 right-0 mx-auto w-[90%] max-w-[350px]"
+                    : "absolute left-8 top-1/2 -translate-y-1/2 w-[250px]"
+                )}>
                   <h2 className="text-xl font-bold mb-4">Score</h2>
                   <div className="border-b border-border pb-2 mb-2">
                     <div className="flex justify-between items-center">
@@ -846,11 +888,16 @@ export default function NBack() {
                 </div>
               )}
               
-              {/* Settings panel - positioned on the right and vertically centered */}
+              {/* Settings panel - positioned appropriately based on device */}
               {settings.focusElements?.settings && (
-                <div className="absolute right-8 top-1/2 -translate-y-1/2 max-h-[80vh] overflow-y-auto z-10">
-                  <div className="bg-card rounded-xl p-4 shadow-lg w-[350px]">
-                    <Settings settings={settings} onSettingsChange={setSettings} isPlaying={isPlaying} />
+                <div className={cn(
+                  "max-h-[80vh] overflow-y-auto z-10",
+                  isMobile
+                    ? "fixed bottom-20 left-0 right-0 mx-auto w-[90%] max-w-[350px]"
+                    : "absolute right-8 top-1/2 -translate-y-1/2"
+                )}>
+                  <div className="bg-card rounded-xl p-4 shadow-lg w-full">
+                    <Settings settings={settings} onSettingsChange={setSettings} isPlaying={isPlaying} isMobile={isMobile} />
                     <button
                       onClick={(e) => {
                         e.preventDefault();
@@ -876,15 +923,26 @@ export default function NBack() {
               
               {/* Turn counter display */}
               {settings.focusElements?.turnCounter && !settings.disableTurnDisplay && (
-                <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-card rounded-xl px-6 py-3 shadow-lg z-10">
+                <div className={cn(
+                  "bg-card rounded-xl px-6 py-3 shadow-lg z-10",
+                  isMobile
+                    ? "absolute top-4 left-1/2 -translate-x-1/2"
+                    : "absolute top-8 left-1/2 -translate-x-1/2"
+                )}>
                   <div className="text-center">
-                    <span className="text-2xl font-bold">Turn: {sequence.length}</span>
+                    <span className={cn("font-bold", isMobile ? "text-xl" : "text-2xl")}>
+                      Turn: {sequence.length}
+                    </span>
                   </div>
                 </div>
               )}
               
               {/* Main grid display - ensure full visibility */}
-              <div className="w-full h-full flex items-center justify-center" style={{ height: '60vh' }}>
+              <div className={cn(
+                "w-full flex items-center justify-center",
+                isMobile ? "h-full mt-16" : "h-full",
+                { "mt-24": isMobile && settings.focusElements?.score }
+              )} style={{ height: isMobile ? '50vh' : '60vh' }}>
                 {settings.is3D ? (
                   <div className="w-full h-full flex items-center justify-center">
                     <Canvas camera={{ position: [6, 6, 6], fov: 55 }}>
@@ -908,18 +966,21 @@ export default function NBack() {
                       <OrbitControls
                         enableZoom={false}
                         autoRotate={false}
+                        enableRotate={!isMobile || settings.is3D}
+                        touchAction="none"
                       />
                     </Canvas>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <div className="transform scale-150">
+                    <div className={cn("transform", isMobile ? "scale-125" : "scale-150")}>
                       <Grid2D
                         position={current?.position}
                         color={current?.color || '#3498db'}
                         number={current?.number}
                         shape={current?.shape}
                         positionEnabled={settings.stimuli.position}
+                        isMobile={isMobile}
                       />
                     </div>
                   </div>
@@ -931,35 +992,68 @@ export default function NBack() {
             <div className="mt-auto">
               {/* Stimuli Buttons - always at the bottom */}
               {(settings.focusElements?.stimuliButtons !== false) && (
-                <div className="flex justify-center gap-4 mb-8">
-                  {['position', 'audio', 'number', 'color', 'shape'].map(type => settings.stimuli[type] && (
-                    <button
-                      key={type}
-                      onClick={() => checkMatch(type)}
-                      className={cn(
-                        "px-6 py-3 rounded-lg font-medium transition-all flex flex-col items-center gap-2",
-                        toggledControls[type]
-                          ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
-                          : "bg-muted hover:bg-muted/80"
-                      )}
-                      disabled={!isPlaying}
-                    >
-                      <span className="capitalize">{type}</span>
-                      <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
-                        {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
-                         type === 'audio' ? settings.audioKey?.toUpperCase() || 'L' :
-                         type === 'number' ? settings.numberKey?.toUpperCase() || 'D' :
-                         type === 'color' ? settings.colorKey?.toUpperCase() || 'F' :
-                         settings.shapeKey?.toUpperCase() || 'J'}
-                      </kbd>
-                    </button>
-                  ))}
+                <div className="flex flex-col gap-4 mb-4">
+                  <div className={cn(
+                    "flex justify-center",
+                    isMobile ? "gap-2 flex-wrap px-2" : "gap-4"
+                  )}>
+                    {['position', 'audio', 'number', 'color', 'shape'].map(type => settings.stimuli[type] && (
+                      <button
+                        key={type}
+                        onClick={() => checkMatch(type)}
+                        className={cn(
+                          "rounded-lg font-medium transition-all flex flex-col items-center",
+                          isMobile ? "px-3 py-2 gap-1" : "px-6 py-3 gap-2",
+                          toggledControls[type]
+                            ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
+                            : "bg-muted hover:bg-muted/80"
+                        )}
+                        disabled={!isPlaying}
+                      >
+                        <span className="capitalize">{isMobile ? type.substring(0, 3) : type}</span>
+                        {!isMobile && (
+                          <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
+                            {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
+                             type === 'audio' ? settings.audioKey?.toUpperCase() || 'L' :
+                             type === 'number' ? settings.numberKey?.toUpperCase() || 'D' :
+                             type === 'color' ? settings.colorKey?.toUpperCase() || 'F' :
+                             settings.shapeKey?.toUpperCase() || 'J'}
+                          </kbd>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Mobile start/stop button below stimuli buttons */}
+                  {isMobile && (
+                    <div className="px-4 pb-2">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          // Simulate pressing the start/stop key
+                          const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
+                          handleKeyPress({
+                            key: startStopKey === 'space' ? ' ' : startStopKey,
+                            preventDefault: () => {} // Add mock preventDefault
+                          });
+                        }}
+                        className={cn(
+                          "w-full py-3 px-4 rounded-md font-medium transition-colors text-lg",
+                          isPlaying
+                            ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                            : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                        )}
+                      >
+                        {isPlaying ? 'Stop' : 'Start'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               
               {/* History - positioned below the buttons and starts minimized */}
               {settings.focusElements?.history && (
-                <div className="px-8 max-w-[1000px] mx-auto">
+                <div className={cn("mx-auto", isMobile ? "px-2 max-w-full" : "px-8 max-w-[1000px]")}>
                   <History sessions={nbackHistory} defaultExpanded={false} />
                 </div>
               )}
@@ -968,8 +1062,16 @@ export default function NBack() {
         </div>
       ) : (
         <>
-          <div className="container mx-auto px-4 py-8 flex gap-8">
-            <div className="w-[200px] mt-[56px]">
+          <div className={cn("container mx-auto px-4 py-8", isMobile ? "flex flex-col gap-6" : "flex gap-8")}>
+            {/* Title for mobile view */}
+            {isMobile && (
+              <div className="text-center">
+                <h2 className="text-2xl font-bold">{getNBackType(settings.stimuli)} N-Back</h2>
+              </div>
+            )}
+            
+            {/* Score panel */}
+            <div className={isMobile ? "w-full" : "w-[200px] mt-[56px]"}>
               <div className="bg-card rounded-xl p-6 shadow-lg space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold">Score</h2>
@@ -1019,8 +1121,11 @@ export default function NBack() {
                   ))}
                 </div>
               </div>
+              
+              {/* Mobile start/stop button moved to after the grid */}
             </div>
             
+            {/* Main grid area */}
             <div className="flex-1 bg-card rounded-xl overflow-hidden shadow-lg">
               <div className="flex flex-col gap-8">
                 <div className="relative">
@@ -1028,24 +1133,24 @@ export default function NBack() {
                   {!settings.disableTurnDisplay && (
                     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
                       <div className="bg-card rounded-xl px-6 py-3 shadow-lg">
-                        <span className="text-2xl font-bold">Turn: {sequence.length}</span>
+                        <span className={cn("font-bold", isMobile ? "text-xl" : "text-2xl")}>Turn: {sequence.length}</span>
                       </div>
                     </div>
                   )}
-                  <div className="w-full h-[500px]">
+                  <div className={cn("w-full", isMobile ? "h-[350px]" : "h-[500px]")}>
                     <HelpButton text={`N-Back Memory Training:
 
-Watch for patterns that match what appeared N positions back in the sequence. Press the corresponding key when you detect a match:
+Watch for patterns that match what appeared N positions back in the sequence. ${isMobile ? 'Tap' : 'Press'} the corresponding ${isMobile ? 'button' : 'key'} when you detect a match:
 
-• Position (${settings.positionKey?.toUpperCase() || 'A'} Key): Same location as N steps ago
-• Audio (${settings.audioKey?.toUpperCase() || 'L'} Key): Same sound as N steps ago
-• Number (${settings.numberKey?.toUpperCase() || 'D'} Key): Same number as N steps ago
-• Color (${settings.colorKey?.toUpperCase() || 'F'} Key): Same color as N steps ago
-• Shape (${settings.shapeKey?.toUpperCase() || 'J'} Key): Same shape as N steps ago
+• Position (${isMobile ? 'Tap Position button' : settings.positionKey?.toUpperCase() + ' Key'}): Same location as N steps ago
+• Audio (${isMobile ? 'Tap Audio button' : settings.audioKey?.toUpperCase() + ' Key'}): Same sound as N steps ago
+• Number (${isMobile ? 'Tap Number button' : settings.numberKey?.toUpperCase() + ' Key'}): Same number as N steps ago
+• Color (${isMobile ? 'Tap Color button' : settings.colorKey?.toUpperCase() + ' Key'}): Same color as N steps ago
+• Shape (${isMobile ? 'Tap Shape button' : settings.shapeKey?.toUpperCase() + ' Key'}): Same shape as N steps ago
 
-Press ${settings.startStopKey === 'Space' ? 'SPACE' : settings.startStopKey?.toUpperCase() || 'SPACE'} to start/stop the game.
+${isMobile ? 'Tap the Start/Stop button' : 'Press ' + (settings.startStopKey === 'Space' ? 'SPACE' : settings.startStopKey?.toUpperCase() || 'SPACE')} to start/stop the game.
 
-Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, press the matching key.`} />
+Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, ${isMobile ? 'tap' : 'press'} the matching ${isMobile ? 'button' : 'key'}.`} />
                     {settings.is3D ? (
                       <Canvas camera={{ position: [6, 6, 6], fov: 50 }}>
                         <ambientLight intensity={0.5} />
@@ -1068,6 +1173,8 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
                         <OrbitControls
                           enableZoom={false}
                           autoRotate={false}
+                          enableRotate={!isMobile || settings.is3D}
+                          touchAction="none"
                         />
                       </Canvas>
                     ) : (
@@ -1078,65 +1185,120 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, p
                           number={current?.number}
                           shape={current?.shape}
                           positionEnabled={settings.stimuli.position}
+                          isMobile={isMobile}
                         />
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="flex justify-center gap-4 pb-6">
-                  {['position', 'audio', 'number', 'color', 'shape'].map(type => settings.stimuli[type] && (
-                    <button
-                      key={type}
-                      onClick={() => checkMatch(type)}
-                      className={cn(
-                        "px-6 py-3 rounded-lg font-medium transition-all flex flex-col items-center gap-2",
-                        toggledControls[type]
-                          ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
-                          : "bg-muted hover:bg-muted/80"
-                      )}
-                      disabled={!isPlaying}
-                    >
-                      <span className="capitalize">{type}</span>
-                      <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
-                        {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
-                         type === 'audio' ? settings.audioKey?.toUpperCase() || 'L' :
-                         type === 'number' ? settings.numberKey?.toUpperCase() || 'D' :
-                         type === 'color' ? settings.colorKey?.toUpperCase() || 'F' :
-                         settings.shapeKey?.toUpperCase() || 'J'}
-                      </kbd>
-                    </button>
-                  ))}
+                <div className="flex flex-col gap-4">
+                  <div className={cn(
+                    "flex justify-center",
+                    isMobile ? "gap-2 flex-wrap px-2" : "gap-4"
+                  )}>
+                    {['position', 'audio', 'number', 'color', 'shape'].map(type => settings.stimuli[type] && (
+                      <button
+                        key={type}
+                        onClick={() => checkMatch(type)}
+                        className={cn(
+                          "rounded-lg font-medium transition-all flex flex-col items-center",
+                          isMobile ? "px-3 py-2 gap-1" : "px-6 py-3 gap-2",
+                          toggledControls[type]
+                            ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
+                            : "bg-muted hover:bg-muted/80"
+                        )}
+                        disabled={!isPlaying}
+                      >
+                        <span className="capitalize">{isMobile ? type.substring(0, 3) : type}</span>
+                        {!isMobile && (
+                          <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
+                            {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
+                             type === 'audio' ? settings.audioKey?.toUpperCase() || 'L' :
+                             type === 'number' ? settings.numberKey?.toUpperCase() || 'D' :
+                             type === 'color' ? settings.colorKey?.toUpperCase() || 'F' :
+                             settings.shapeKey?.toUpperCase() || 'J'}
+                          </kbd>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Mobile start/stop button below stimuli buttons */}
+                  {isMobile && (
+                    <div className="px-4 pb-2">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          // Simulate pressing the start/stop key
+                          const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
+                          handleKeyPress({
+                            key: startStopKey === 'space' ? ' ' : startStopKey,
+                            preventDefault: () => {} // Add mock preventDefault
+                          });
+                        }}
+                        className={cn(
+                          "w-full py-3 px-4 rounded-md font-medium transition-colors text-lg",
+                          isPlaying
+                            ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                            : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                        )}
+                      >
+                        {isPlaying ? 'Stop' : 'Start'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="w-[350px]">
-              <h2 className="text-2xl font-bold mb-6">{getNBackType(settings.stimuli)} N-Back</h2>
-              <Settings settings={settings} onSettingsChange={setSettings} isPlaying={isPlaying} />
-              <div className="space-y-2">
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // Simulate pressing the start/stop key
-                    const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
-                    handleKeyPress({
-                      key: startStopKey === 'space' ? ' ' : startStopKey,
-                      preventDefault: () => {} // Add mock preventDefault
-                    });
-                  }}
-                  className={cn(
-                    "w-full py-2 px-4 rounded-md font-medium transition-colors",
-                    isPlaying
-                      ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                      : "bg-primary hover:bg-primary/90 text-primary-foreground"
-                  )}
-                >
-                  {isPlaying ? 'Stop' : 'Start'}
-                </button>
+            {/* Settings panel - hidden on mobile initially */}
+            {!isMobile && (
+              <div className="w-[350px]">
+                <h2 className="text-2xl font-bold mb-6">{getNBackType(settings.stimuli)} N-Back</h2>
+                <Settings settings={settings} onSettingsChange={setSettings} isPlaying={isPlaying} isMobile={isMobile} />
+                <div className="space-y-2">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      // Simulate pressing the start/stop key
+                      const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
+                      handleKeyPress({
+                        key: startStopKey === 'space' ? ' ' : startStopKey,
+                        preventDefault: () => {} // Add mock preventDefault
+                      });
+                    }}
+                    className={cn(
+                      "w-full py-2 px-4 rounded-md font-medium transition-colors",
+                      isPlaying
+                        ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                        : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                    )}
+                  >
+                    {isPlaying ? 'Stop' : 'Start'}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
+          
+          {/* Mobile settings toggle */}
+          {isMobile && (
+            <div className="container mx-auto px-4 pb-4">
+              <button
+                onClick={() => setShowMobileSettings(prev => !prev)}
+                className="w-full py-3 px-4 rounded-md font-medium bg-card hover:bg-card/90 border border-border"
+              >
+                {showMobileSettings ? 'Hide Settings' : 'Show Settings'}
+              </button>
+              
+              {showMobileSettings && (
+                <div className="mt-4">
+                  <Settings settings={settings} onSettingsChange={setSettings} isPlaying={isPlaying} isMobile={isMobile} />
+                </div>
+              )}
+            </div>
+          )}
           
           {/* History Section */}
           <div className="container mx-auto px-4 pb-8">
