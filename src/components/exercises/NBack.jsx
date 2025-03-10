@@ -884,16 +884,16 @@ export default function NBack() {
               {/* Score panel - positioned appropriately based on device */}
               {settings.focusElements?.score && (
                 <div className={cn(
-                  "bg-card rounded-xl p-4 shadow-lg z-10",
+                  "bg-card rounded-xl shadow-lg z-10",
                   isMobile
-                    ? "absolute top-0 left-0 right-0 mx-auto w-[90%] max-w-[350px]"
-                    : "absolute left-8 top-1/2 -translate-y-1/2 w-[250px]"
+                    ? "fixed top-0 left-0 right-0 w-full p-0.5 block"
+                    : "absolute left-8 top-1/2 -translate-y-1/2 w-[250px] p-4"
                 )}>
-                  <h2 className="text-xl font-bold mb-4">Score</h2>
-                  <div className="border-b border-border pb-2 mb-2">
+                  <h2 className={cn("font-bold", isMobile ? "text-lg mb-1" : "text-xl mb-4")}>Score</h2>
+                  <div className="border-b border-border pb-0.5 mb-0.5">
                     <div className="flex justify-between items-center">
                       <span className="font-medium">Total</span>
-                      <span className="text-lg font-semibold">
+                      <span className={cn("font-semibold", isMobile ? "text-base" : "text-lg")}>
                         {(() => {
                           const enabledScores = Object.entries(score)
                             .filter(([type]) => settings.stimuli[type]);
@@ -911,17 +911,17 @@ export default function NBack() {
                       </span>
                     </div>
                   </div>
-                  <div className="space-y-3">
+                  <div className={cn("grid", isMobile ? "grid-cols-2 gap-x-4 gap-y-1" : "space-y-3")}>
                     {Object.entries(score).map(([type, stats]) => (
                       settings.stimuli[type] && (
-                        <div key={type} className="space-y-1">
+                        <div key={type} className={isMobile ? "" : "space-y-1"}>
                           <div className="flex justify-between items-center">
-                            <span className="capitalize font-medium">{type}</span>
-                            <span className="text-sm text-muted-foreground">
+                            <span className="capitalize font-medium text-sm">{type}</span>
+                            <span className="text-xs text-muted-foreground">
                               {Math.round((stats.correct / Math.max(stats.correct + stats.incorrect, 1)) * 100)}%
                             </span>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="grid grid-cols-2 gap-1 text-xs">
                             <div className="text-green-500">
                               +{stats.correct}
                             </div>
@@ -988,9 +988,9 @@ export default function NBack() {
               {/* Main grid display - ensure full visibility */}
               <div className={cn(
                 "w-full flex items-center justify-center",
-                isMobile ? "h-full mt-16" : "h-full",
-                { "mt-24": isMobile && settings.focusElements?.score }
-              )} style={{ height: isMobile ? '50vh' : '60vh' }}>
+                isMobile ? "h-full mt-4" : "h-full",
+                { "mt-8": isMobile && settings.focusElements?.score }
+              )} style={{ height: isMobile ? '35vh' : '60vh' }}>
                 {settings.is3D ? (
                   <div className="w-full h-full flex items-center justify-center">
                     <Canvas camera={{ position: [6, 6, 6], fov: 55 }}>
@@ -1021,7 +1021,7 @@ export default function NBack() {
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <div className={cn("transform", isMobile ? "scale-125" : "scale-150")}>
+                    <div className={cn("transform", isMobile ? "mb-1 scale-125" : "scale-150")}>
                       <Grid2D
                         position={current?.position}
                         color={current?.color || '#3498db'}
@@ -1042,23 +1042,29 @@ export default function NBack() {
               {(settings.focusElements?.stimuliButtons !== false) && (
                 <div className="flex flex-col gap-4 mb-4">
                   <div className={cn(
-                    "flex justify-center",
-                    isMobile ? "gap-2 flex-wrap px-2" : "gap-4"
+                    isMobile
+                      ? "grid grid-cols-2 gap-1 px-4 w-full mb-1"
+                      : "flex justify-center gap-4"
                   )}>
-                    {['position', 'audio', 'number', 'color', 'shape'].map(type => settings.stimuli[type] && (
+                    {['position', 'audio', 'number', 'color', 'shape'].map((type, index) => settings.stimuli[type] && (
                       <button
                         key={type}
                         onClick={() => checkMatch(type)}
                         className={cn(
-                          "rounded-lg font-medium transition-all flex flex-col items-center",
-                          isMobile ? "px-3 py-2 gap-1" : "px-6 py-3 gap-2",
+                          "rounded-lg font-medium transition-all",
+                          isMobile
+                            ? cn(
+                                "flex items-center justify-center",
+                                index === 4 ? "col-span-2 py-1.5 px-2" : "h-10 py-1.5"
+                              )
+                            : "flex flex-col items-center px-6 py-3 gap-2",
                           toggledControls[type]
                             ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
                             : "bg-muted hover:bg-muted/80"
                         )}
                         disabled={!isPlaying}
                       >
-                        <span className="capitalize">{isMobile ? type.substring(0, 3) : type}</span>
+                        <span className={cn("capitalize", isMobile ? "text-xs" : "")}>{type}</span>
                         {!isMobile && (
                           <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
                             {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
@@ -1119,16 +1125,16 @@ export default function NBack() {
             )}
             
             {/* Score panel */}
-            <div className={isMobile ? "w-full" : "w-[200px] mt-[56px]"}>
-              <div className="bg-card rounded-xl p-6 shadow-lg space-y-6">
+            <div className={isMobile ? "w-full block" : "w-[200px] mt-[56px]"}>
+              <div className={cn("bg-card rounded-xl shadow-lg", isMobile ? "p-1" : "p-6 space-y-6")}>
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">Score</h2>
+                  <h2 className={cn("font-bold", isMobile ? "text-lg" : "text-2xl")}>Score</h2>
                 </div>
                 {/* Total Score */}
-                <div className="border-b border-border pb-4 mb-4">
+                <div className={cn("border-b border-border", isMobile ? "pb-1 mb-1" : "pb-4 mb-4")}>
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Total</span>
-                    <span className="text-lg font-semibold">
+                    <span className={cn("font-semibold", isMobile ? "text-base" : "text-lg")}>
                       {(() => {
                         const enabledScores = Object.entries(score)
                           .filter(([type]) => settings.stimuli[type]);
@@ -1146,17 +1152,17 @@ export default function NBack() {
                     </span>
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className={cn(isMobile ? "grid grid-cols-2 gap-x-4 gap-y-1" : "space-y-4")}>
                   {Object.entries(score).map(([type, stats]) => (
                     settings.stimuli[type] && (
-                      <div key={type} className="space-y-1">
+                      <div key={type} className={isMobile ? "" : "space-y-1"}>
                         <div className="flex justify-between items-center">
-                          <span className="capitalize font-medium">{type}</span>
-                          <span className="text-sm text-muted-foreground">
+                          <span className="capitalize font-medium text-sm">{type}</span>
+                          <span className="text-xs text-muted-foreground">
                             {Math.round((stats.correct / Math.max(stats.correct + stats.incorrect, 1)) * 100)}%
                           </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="grid grid-cols-2 gap-1 text-xs">
                           <div className="text-green-500">
                             +{stats.correct}
                           </div>
@@ -1185,7 +1191,7 @@ export default function NBack() {
                       </div>
                     </div>
                   )}
-                  <div className={cn("w-full", isMobile ? "h-[350px]" : "h-[500px]")}>
+                  <div className={cn("w-full", isMobile ? "h-[300px]" : "h-[500px]")}>
                     <HelpButton text={`N-Back Memory Training:
 
 Watch for patterns that match what appeared N positions back in the sequence. ${isMobile ? 'Tap' : 'Press'} the corresponding ${isMobile ? 'button' : 'key'} when you detect a match:
@@ -1226,7 +1232,7 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, $
                         />
                       </Canvas>
                     ) : (
-                      <div className="h-full flex items-center justify-center">
+                      <div className={cn("h-full flex items-center justify-center", isMobile ? "mb-1" : "")}>
                         <Grid2D
                           position={current?.position}
                           color={current?.color || '#3498db'}
@@ -1242,23 +1248,29 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, $
 
                 <div className="flex flex-col gap-4">
                   <div className={cn(
-                    "flex justify-center",
-                    isMobile ? "gap-2 flex-wrap px-2" : "gap-4"
+                    isMobile
+                      ? "grid grid-cols-2 gap-1 px-4 w-full mb-1"
+                      : "flex justify-center gap-4"
                   )}>
-                    {['position', 'audio', 'number', 'color', 'shape'].map(type => settings.stimuli[type] && (
+                    {['position', 'audio', 'number', 'color', 'shape'].map((type, index) => settings.stimuli[type] && (
                       <button
                         key={type}
                         onClick={() => checkMatch(type)}
                         className={cn(
-                          "rounded-lg font-medium transition-all flex flex-col items-center",
-                          isMobile ? "px-3 py-2 gap-1" : "px-6 py-3 gap-2",
+                          "rounded-lg font-medium transition-all",
+                          isMobile
+                            ? cn(
+                                "flex items-center justify-center",
+                                index === 4 ? "col-span-2 py-1.5 px-2" : "h-10 py-1.5"
+                              )
+                            : "flex flex-col items-center px-6 py-3 gap-2",
                           toggledControls[type]
                             ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
                             : "bg-muted hover:bg-muted/80"
                         )}
                         disabled={!isPlaying}
                       >
-                        <span className="capitalize">{isMobile ? type.substring(0, 3) : type}</span>
+                        <span className={cn("capitalize", isMobile ? "text-xs" : "")}>{type}</span>
                         {!isMobile && (
                           <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
                             {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
