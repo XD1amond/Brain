@@ -579,6 +579,15 @@ export default function NBack() {
       if (isPlaying) {
         setIsPlaying(false);
         
+        // Reset toggled controls when stopping the game
+        setToggledControls({
+          position: false,
+          color: false,
+          audio: false,
+          shape: false,
+          number: false
+        });
+        
         // Calculate overall score metrics across all enabled stimuli
         const enabledScores = Object.entries(score)
           .filter(([type]) => settings.stimuli[type]);
