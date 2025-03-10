@@ -792,11 +792,9 @@ export default function NBack() {
 
   // Handle touch events for mobile devices
   const handleTouchStart = useCallback((e) => {
-    // Prevent default behavior to avoid scrolling
-    if (isPlaying) {
-      e.preventDefault();
-    }
-  }, [isPlaying]);
+    // Don't prevent default behavior at all to ensure buttons work on mobile
+    // Just let the native touch events work normally
+  }, []);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
