@@ -60,6 +60,9 @@ export default function NBack() {
       color: 0,
       shape: 0
     },
+    // Sets settings
+    setsEnabled: true,
+    setLength: 20,
     // Auto progression settings
     autoProgressionEnabled: true,
     thresholdAdvance: 80,
@@ -415,49 +418,14 @@ export default function NBack() {
     }
   }, [settings.audioTypes]);
 
-  // Use a ref to hold stable settings so that timing isn't recalculated on every render.
+  // Use refs to hold stable settings and functions so that they aren't recalculated on every render.
   const settingsRef = useRef(settings);
+  const handleKeyPressRef = useRef(null);
+  
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
   
-  useEffect(() => {
-    if (!isPlaying) return;
-    
-    let timeoutId;
-    const runTurn = () => {
-      const currentSettings = settingsRef.current;
-      const displayDuration = currentSettings.randomizeDisplayDuration
-        ? Math.floor(Math.random() * (currentSettings.displayDurationMax - currentSettings.displayDurationMin + 1)) + currentSettings.displayDurationMin
-        : currentSettings.displayDuration;
-      const delayDuration = currentSettings.randomizeDelayDuration
-        ? Math.floor(Math.random() * (currentSettings.delayDurationMax - currentSettings.delayDurationMin + 1)) + currentSettings.delayDurationMin
-        : currentSettings.delayDuration;
-        
-      const newStimulus = {
-        ...generateStimulus(),
-        displayDuration,
-        delayDuration
-      };
-      
-      setSequence(prev => [...prev, newStimulus]);
-      setCurrent(newStimulus);
-      
-      if (currentSettings.stimuli.audio) {
-        playSound(newStimulus);
-      }
-      
-      timeoutId = setTimeout(() => {
-        setCurrent(null);
-        timeoutId = setTimeout(runTurn, delayDuration);
-      }, displayDuration);
-    };
-    
-    runTurn();
-    
-    return () => clearTimeout(timeoutId);
-  }, [isPlaying, generateStimulus, playSound]);
-
   const getNBackForType = useCallback((type) => {
     if (!settings.useIndividualNBacks || !settings.individualNBacks[type] || settings.individualNBacks[type] === 0) {
       return settings.nBack;
@@ -475,75 +443,8 @@ export default function NBack() {
       [type]: !prev[type]
     }));
   }, [current, sequence.length, getNBackForType]);
-
-  // Check matches and update scores when a new stimulus appears
-  useEffect(() => {
-    if (!current || sequence.length <= Math.max(...Object.values(settings.individualNBacks), settings.nBack) + 1) return;
-    
-    // Check each stimulus type for matches and update scores
-    Object.entries(settings.stimuli).forEach(([type, enabled]) => {
-      if (!enabled) return;
-
-      const nBackLevel = getNBackForType(type);
-      
-      // Get the previous stimulus and its target based on individual n-back level
-      const prevStimulus = sequence[sequence.length - 2];
-      const prevTarget = sequence[sequence.length - nBackLevel - 2];
-      
-      if (!prevStimulus || !prevTarget) return;
-      
-      let isMatch = false;
-      switch (type) {
-        case 'position':
-          isMatch = settings.is3D
-            ? prevStimulus.position.every((v, i) => v === prevTarget.position[i])
-            : prevStimulus.position[0] === prevTarget.position[0] &&
-              prevStimulus.position[1] === prevTarget.position[1];
-          break;
-        case 'color':
-          isMatch = prevStimulus.color === prevTarget.color;
-          break;
-        case 'audio':
-          isMatch = (
-            (settings.audioTypes.tone && prevStimulus.tone === prevTarget.tone) ||
-            (settings.audioTypes.letters && prevStimulus.letter === prevTarget.letter) ||
-            (settings.audioTypes.numbers && prevStimulus.spokenNumber === prevTarget.spokenNumber)
-          );
-          break;
-        case 'number':
-          isMatch = prevStimulus.number === prevTarget.number;
-          break;
-        case 'shape':
-          isMatch = prevStimulus.shape === prevTarget.shape;
-          break;
-      }
-
-      const wasToggled = toggledControls[type];
-
-      // Count as correct if:
-      // 1. There was a match and user pressed the button (wasToggled true)
-      // 2. There was no match and user didn't press the button (wasToggled false)
-      const isCorrect = (isMatch && wasToggled) || (!isMatch && !wasToggled);
-
-      setScore(prev => ({
-        ...prev,
-        [type]: {
-          correct: prev[type].correct + (isCorrect ? 1 : 0),
-          incorrect: prev[type].incorrect + (!isCorrect ? 1 : 0)
-        }
-      }));
-    });
-
-    // Reset toggles for next turn
-    setToggledControls({
-      position: false,
-      color: false,
-      audio: false,
-      shape: false,
-      number: false
-    });
-  }, [current, sequence, settings.nBack, settings.is3D, settings.audioTypes, settings.individualNBacks, settings.useIndividualNBacks, getNBackForType]);
-
+  
+  // Define handleKeyPress function
   const handleKeyPress = useCallback((e) => {
     const key = e.key.toLowerCase();
     
@@ -798,6 +699,140 @@ export default function NBack() {
       checkMatch('shape');
     }
   }, [isPlaying, settings.stimuli, checkMatch]);
+  
+  // Store the handleKeyPress function in a ref so it can be accessed in the runTurn function
+  useEffect(() => {
+    handleKeyPressRef.current = handleKeyPress;
+  }, [handleKeyPress]);
+  
+  useEffect(() => {
+    if (!isPlaying) return;
+    
+    let timeoutId;
+    const runTurn = () => {
+      const currentSettings = settingsRef.current;
+      const displayDuration = currentSettings.randomizeDisplayDuration
+        ? Math.floor(Math.random() * (currentSettings.displayDurationMax - currentSettings.displayDurationMin + 1)) + currentSettings.displayDurationMin
+        : currentSettings.displayDuration;
+      const delayDuration = currentSettings.randomizeDelayDuration
+        ? Math.floor(Math.random() * (currentSettings.delayDurationMax - currentSettings.delayDurationMin + 1)) + currentSettings.delayDurationMin
+        : currentSettings.delayDuration;
+        
+      const newStimulus = {
+        ...generateStimulus(),
+        displayDuration,
+        delayDuration
+      };
+      
+      setSequence(prev => {
+        const newSequence = [...prev, newStimulus];
+        
+        // Check if we've reached the set length and should stop automatically
+        if (currentSettings.setsEnabled && newSequence.length >= currentSettings.setLength) {
+          // Schedule a stop after this stimulus is displayed
+          setTimeout(() => {
+            if (isPlaying) {
+              // Simulate pressing the start/stop key to stop the game
+              const startStopKey = currentSettings.startStopKey?.toLowerCase() || 'space';
+              handleKeyPressRef.current({
+                key: startStopKey === 'space' ? ' ' : startStopKey,
+                preventDefault: () => {}
+              });
+            }
+          }, displayDuration + 100); // Add a small delay after the stimulus disappears
+        }
+        
+        return newSequence;
+      });
+      
+      setCurrent(newStimulus);
+      
+      if (currentSettings.stimuli.audio) {
+        playSound(newStimulus);
+      }
+      
+      timeoutId = setTimeout(() => {
+        setCurrent(null);
+        timeoutId = setTimeout(runTurn, delayDuration);
+      }, displayDuration);
+    };
+    
+    runTurn();
+    
+    return () => clearTimeout(timeoutId);
+  }, [isPlaying, generateStimulus, playSound]);
+
+  // These functions have been moved up before handleKeyPress
+
+  // Check matches and update scores when a new stimulus appears
+  useEffect(() => {
+    if (!current || sequence.length <= Math.max(...Object.values(settings.individualNBacks), settings.nBack) + 1) return;
+    
+    // Check each stimulus type for matches and update scores
+    Object.entries(settings.stimuli).forEach(([type, enabled]) => {
+      if (!enabled) return;
+
+      const nBackLevel = getNBackForType(type);
+      
+      // Get the previous stimulus and its target based on individual n-back level
+      const prevStimulus = sequence[sequence.length - 2];
+      const prevTarget = sequence[sequence.length - nBackLevel - 2];
+      
+      if (!prevStimulus || !prevTarget) return;
+      
+      let isMatch = false;
+      switch (type) {
+        case 'position':
+          isMatch = settings.is3D
+            ? prevStimulus.position.every((v, i) => v === prevTarget.position[i])
+            : prevStimulus.position[0] === prevTarget.position[0] &&
+              prevStimulus.position[1] === prevTarget.position[1];
+          break;
+        case 'color':
+          isMatch = prevStimulus.color === prevTarget.color;
+          break;
+        case 'audio':
+          isMatch = (
+            (settings.audioTypes.tone && prevStimulus.tone === prevTarget.tone) ||
+            (settings.audioTypes.letters && prevStimulus.letter === prevTarget.letter) ||
+            (settings.audioTypes.numbers && prevStimulus.spokenNumber === prevTarget.spokenNumber)
+          );
+          break;
+        case 'number':
+          isMatch = prevStimulus.number === prevTarget.number;
+          break;
+        case 'shape':
+          isMatch = prevStimulus.shape === prevTarget.shape;
+          break;
+      }
+
+      const wasToggled = toggledControls[type];
+
+      // Count as correct if:
+      // 1. There was a match and user pressed the button (wasToggled true)
+      // 2. There was no match and user didn't press the button (wasToggled false)
+      const isCorrect = (isMatch && wasToggled) || (!isMatch && !wasToggled);
+
+      setScore(prev => ({
+        ...prev,
+        [type]: {
+          correct: prev[type].correct + (isCorrect ? 1 : 0),
+          incorrect: prev[type].incorrect + (!isCorrect ? 1 : 0)
+        }
+      }));
+    });
+
+    // Reset toggles for next turn
+    setToggledControls({
+      position: false,
+      color: false,
+      audio: false,
+      shape: false,
+      number: false
+    });
+  }, [current, sequence, settings.nBack, settings.is3D, settings.audioTypes, settings.individualNBacks, settings.useIndividualNBacks, getNBackForType]);
+
+  // This section is intentionally left empty to remove the duplicate handleKeyPress function
 
   // Handle touch events for mobile devices
   const handleTouchStart = useCallback((e) => {
@@ -806,7 +841,13 @@ export default function NBack() {
   }, []);
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyPress);
+    const keydownHandler = (e) => {
+      if (handleKeyPressRef.current) {
+        handleKeyPressRef.current(e);
+      }
+    };
+    
+    window.addEventListener('keydown', keydownHandler);
     
     // Add touch event listeners for mobile
     if (isMobile) {
@@ -814,12 +855,12 @@ export default function NBack() {
     }
     
     return () => {
-      window.removeEventListener('keydown', handleKeyPress);
+      window.removeEventListener('keydown', keydownHandler);
       if (isMobile) {
         document.removeEventListener('touchstart', handleTouchStart);
       }
     };
-  }, [handleKeyPress, handleTouchStart, isMobile]);
+  }, [handleTouchStart, isMobile]);
 
   return (
     <div className={cn("min-h-screen bg-background", focusMode && "overflow-hidden")}>
@@ -910,7 +951,7 @@ export default function NBack() {
                         e.preventDefault();
                         // Simulate pressing the start/stop key
                         const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
-                        handleKeyPress({
+                        handleKeyPressRef.current({
                           key: startStopKey === 'space' ? ' ' : startStopKey,
                           preventDefault: () => {} // Add mock preventDefault
                         });
@@ -1039,7 +1080,7 @@ export default function NBack() {
                           e.preventDefault();
                           // Simulate pressing the start/stop key
                           const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
-                          handleKeyPress({
+                          handleKeyPressRef.current({
                             key: startStopKey === 'space' ? ' ' : startStopKey,
                             preventDefault: () => {} // Add mock preventDefault
                           });
@@ -1239,7 +1280,7 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, $
                           e.preventDefault();
                           // Simulate pressing the start/stop key
                           const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
-                          handleKeyPress({
+                          handleKeyPressRef.current({
                             key: startStopKey === 'space' ? ' ' : startStopKey,
                             preventDefault: () => {} // Add mock preventDefault
                           });
@@ -1270,7 +1311,7 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, $
                       e.preventDefault();
                       // Simulate pressing the start/stop key
                       const startStopKey = settings.startStopKey?.toLowerCase() || 'space';
-                      handleKeyPress({
+                      handleKeyPressRef.current({
                         key: startStopKey === 'space' ? ' ' : startStopKey,
                         preventDefault: () => {} // Add mock preventDefault
                       });

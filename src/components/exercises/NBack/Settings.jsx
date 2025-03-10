@@ -109,6 +109,39 @@ export function Settings({ settings, onSettingsChange, isPlaying, isMobile }) {
               <span>3D Grid <SettingTooltip text="Displays the grid in 3D space, allowing for rotation and depth perception." /></span>
             </label>
 
+            <div className="border-t border-border pt-4 mt-4">
+              <label className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={settings.setsEnabled === undefined ? true : settings.setsEnabled}
+                  onChange={e => handleChange('setsEnabled', e.target.checked)}
+                  className="form-checkbox"
+                  disabled={isPlaying}
+                />
+                <span>Sets <SettingTooltip text="Automatically stop the game after a specific number of turns." /></span>
+              </label>
+
+              {(settings.setsEnabled === undefined || settings.setsEnabled) && (
+                <div className="space-y-4 ml-6 mt-2">
+                  <div className="form-group">
+                    <label className="form-label">Set Length <SettingTooltip text="Number of turns before the game automatically stops." /></label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={settings.setLength || 20}
+                        onChange={e => handleChange('setLength', Math.max(1, parseInt(e.target.value)))}
+                        min="1"
+                        max="100"
+                        className="form-input w-20"
+                        disabled={isPlaying}
+                      />
+                      <span className="text-sm text-muted-foreground">turns</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* 3D settings moved to Rotation section */}
           </div>
         </SettingsGroup>
