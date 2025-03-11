@@ -969,17 +969,17 @@ export default function NBack() {
                 </div>
               )}
               
-              {/* Turn counter display */}
+              {/* Turn counter display - moved between score and grid for mobile */}
               {settings.focusElements?.turnCounter && !settings.disableTurnDisplay && (
                 <div className={cn(
                   "bg-card rounded-xl px-6 py-3 shadow-lg z-10",
                   isMobile
-                    ? "absolute top-4 left-1/2 -translate-x-1/2"
+                    ? "mt-2 mb-2 mx-auto" // Position between score and grid in mobile
                     : "absolute top-8 left-1/2 -translate-x-1/2"
                 )}>
                   <div className="text-center">
                     <span className={cn("font-bold", isMobile ? "text-xl" : "text-2xl")}>
-                      Turn: {sequence.length}
+                      Turn: {sequence.length}/{settings.setsEnabled ? settings.setLength : '-'}
                     </span>
                   </div>
                 </div>
@@ -1043,38 +1043,48 @@ export default function NBack() {
                 <div className="flex flex-col gap-4 mb-4">
                   <div className={cn(
                     isMobile
-                      ? "grid grid-cols-2 gap-1 px-4 w-full mb-1"
+                      ? "grid gap-1 px-4 w-full mb-1"
                       : "flex justify-center gap-4"
-                  )}>
-                    {['position', 'audio', 'number', 'color', 'shape'].map((type, index) => settings.stimuli[type] && (
-                      <button
-                        key={type}
-                        onClick={() => checkMatch(type)}
-                        className={cn(
-                          "rounded-lg font-medium transition-all",
-                          isMobile
-                            ? cn(
-                                "flex items-center justify-center",
-                                index === 4 ? "col-span-2 py-1.5 px-2" : "h-10 py-1.5"
-                              )
-                            : "flex flex-col items-center px-6 py-3 gap-2",
-                          toggledControls[type]
-                            ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
-                            : "bg-muted hover:bg-muted/80"
-                        )}
-                        disabled={!isPlaying}
-                      >
-                        <span className={cn("capitalize", isMobile ? "text-xs" : "")}>{type}</span>
-                        {!isMobile && (
-                          <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
-                            {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
-                             type === 'audio' ? settings.audioKey?.toUpperCase() || 'L' :
-                             type === 'number' ? settings.numberKey?.toUpperCase() || 'D' :
-                             type === 'color' ? settings.colorKey?.toUpperCase() || 'F' :
-                             settings.shapeKey?.toUpperCase() || 'J'}
-                          </kbd>
-                        )}
-                      </button>
+                  )}
+                  style={isMobile ? {
+                    // Dynamically adjust grid columns based on enabled stimuli count
+                    gridTemplateColumns: `repeat(${Math.min(2, Object.values(settings.stimuli).filter(Boolean).length)}, 1fr)`,
+                  } : {}}>
+                    {/* Filter enabled stimuli first, then map them */}
+                    {['position', 'audio', 'number', 'color', 'shape']
+                      .filter(type => settings.stimuli[type])
+                      .map((type, index, filteredArray) => (
+                        <button
+                          key={type}
+                          onClick={() => checkMatch(type)}
+                          className={cn(
+                            "rounded-lg font-medium transition-all",
+                            isMobile
+                              ? cn(
+                                  "flex items-center justify-center",
+                                  // Make the last button span 2 columns if odd number and it's the last one
+                                  filteredArray.length % 2 !== 0 && index === filteredArray.length - 1
+                                    ? "col-span-2 py-1.5 px-2"
+                                    : "h-10 py-1.5"
+                                )
+                              : "flex flex-col items-center px-6 py-3 gap-2",
+                            toggledControls[type]
+                              ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
+                              : "bg-muted hover:bg-muted/80"
+                          )}
+                          disabled={!isPlaying}
+                        >
+                          <span className={cn("capitalize", isMobile ? "text-xs" : "")}>{type}</span>
+                          {!isMobile && (
+                            <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
+                              {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
+                               type === 'audio' ? settings.audioKey?.toUpperCase() || 'L' :
+                               type === 'number' ? settings.numberKey?.toUpperCase() || 'D' :
+                               type === 'color' ? settings.colorKey?.toUpperCase() || 'F' :
+                               settings.shapeKey?.toUpperCase() || 'J'}
+                            </kbd>
+                          )}
+                        </button>
                     ))}
                   </div>
                   
@@ -1179,19 +1189,32 @@ export default function NBack() {
               {/* Mobile start/stop button moved to after the grid */}
             </div>
             
+            {/* Mobile turn display - positioned between score and grid */}
+            {isMobile && !settings.disableTurnDisplay && (
+              <div className="w-full flex justify-center mb-1 mt-1">
+                <div className="bg-card rounded-xl px-6 py-1 shadow-lg">
+                  <span className="font-bold text-xl">
+                    Turn: {sequence.length}/{settings.setsEnabled ? settings.setLength : '-'}
+                  </span>
+                </div>
+              </div>
+            )}
+            
             {/* Main grid area */}
             <div className="flex-1 bg-card rounded-xl overflow-hidden shadow-lg">
-              <div className="flex flex-col gap-8">
-                <div className="relative">
-                  {/* Turn counter display in regular mode */}
-                  {!settings.disableTurnDisplay && (
+              <div className="flex flex-col gap-4">
+                <div className="relative pt-0">
+                  {/* Turn counter display in regular mode - only show here for desktop */}
+                  {!settings.disableTurnDisplay && !isMobile && (
                     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
                       <div className="bg-card rounded-xl px-6 py-3 shadow-lg">
-                        <span className={cn("font-bold", isMobile ? "text-xl" : "text-2xl")}>Turn: {sequence.length}</span>
+                        <span className="font-bold text-2xl">
+                          Turn: {sequence.length}/{settings.setsEnabled ? settings.setLength : '-'}
+                        </span>
                       </div>
                     </div>
                   )}
-                  <div className={cn("w-full", isMobile ? "h-[300px]" : "h-[500px]")}>
+                  <div className={cn("w-full", isMobile ? "h-[280px] pt-1 pb-1" : "h-[500px]")}>
                     <HelpButton text={`N-Back Memory Training:
 
 Watch for patterns that match what appeared N positions back in the sequence. ${isMobile ? 'Tap' : 'Press'} the corresponding ${isMobile ? 'button' : 'key'} when you detect a match:
@@ -1249,38 +1272,48 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, $
                 <div className="flex flex-col gap-4">
                   <div className={cn(
                     isMobile
-                      ? "grid grid-cols-2 gap-1 px-4 w-full mb-1"
+                      ? "grid gap-1 px-4 w-full mb-1"
                       : "flex justify-center gap-4"
-                  )}>
-                    {['position', 'audio', 'number', 'color', 'shape'].map((type, index) => settings.stimuli[type] && (
-                      <button
-                        key={type}
-                        onClick={() => checkMatch(type)}
-                        className={cn(
-                          "rounded-lg font-medium transition-all",
-                          isMobile
-                            ? cn(
-                                "flex items-center justify-center",
-                                index === 4 ? "col-span-2 py-1.5 px-2" : "h-10 py-1.5"
-                              )
-                            : "flex flex-col items-center px-6 py-3 gap-2",
-                          toggledControls[type]
-                            ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
-                            : "bg-muted hover:bg-muted/80"
-                        )}
-                        disabled={!isPlaying}
-                      >
-                        <span className={cn("capitalize", isMobile ? "text-xs" : "")}>{type}</span>
-                        {!isMobile && (
-                          <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
-                            {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
-                             type === 'audio' ? settings.audioKey?.toUpperCase() || 'L' :
-                             type === 'number' ? settings.numberKey?.toUpperCase() || 'D' :
-                             type === 'color' ? settings.colorKey?.toUpperCase() || 'F' :
-                             settings.shapeKey?.toUpperCase() || 'J'}
-                          </kbd>
-                        )}
-                      </button>
+                  )}
+                  style={isMobile ? {
+                    // Dynamically adjust grid columns based on enabled stimuli count
+                    gridTemplateColumns: `repeat(${Math.min(2, Object.values(settings.stimuli).filter(Boolean).length)}, 1fr)`,
+                  } : {}}>
+                    {/* Filter enabled stimuli first, then map them */}
+                    {['position', 'audio', 'number', 'color', 'shape']
+                      .filter(type => settings.stimuli[type])
+                      .map((type, index, filteredArray) => (
+                        <button
+                          key={type}
+                          onClick={() => checkMatch(type)}
+                          className={cn(
+                            "rounded-lg font-medium transition-all",
+                            isMobile
+                              ? cn(
+                                  "flex items-center justify-center",
+                                  // Make the last button span 2 columns if odd number and it's the last one
+                                  filteredArray.length % 2 !== 0 && index === filteredArray.length - 1
+                                    ? "col-span-2 py-1.5 px-2"
+                                    : "h-10 py-1.5"
+                                )
+                              : "flex flex-col items-center px-6 py-3 gap-2",
+                            toggledControls[type]
+                              ? "bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary/50"
+                              : "bg-muted hover:bg-muted/80"
+                          )}
+                          disabled={!isPlaying}
+                        >
+                          <span className={cn("capitalize", isMobile ? "text-xs" : "")}>{type}</span>
+                          {!isMobile && (
+                            <kbd className="px-2 py-1 bg-black/20 rounded text-sm">
+                              {type === 'position' ? settings.positionKey?.toUpperCase() || 'A' :
+                               type === 'audio' ? settings.audioKey?.toUpperCase() || 'L' :
+                               type === 'number' ? settings.numberKey?.toUpperCase() || 'D' :
+                               type === 'color' ? settings.colorKey?.toUpperCase() || 'F' :
+                               settings.shapeKey?.toUpperCase() || 'J'}
+                            </kbd>
+                          )}
+                        </button>
                     ))}
                   </div>
                   
