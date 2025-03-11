@@ -32,6 +32,11 @@ export default function NBack() {
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
   
+  // Function to delete a history session
+  const handleDeleteSession = useCallback((timestamp) => {
+    setNbackHistory(prev => prev.filter(session => session.timestamp !== timestamp));
+  }, [setNbackHistory]);
+  
   // Check if device is mobile
   useEffect(() => {
     const checkMobile = () => {
@@ -1118,7 +1123,12 @@ export default function NBack() {
               {/* History - positioned below the buttons and starts minimized */}
               {settings.focusElements?.history && (
                 <div className={cn("mx-auto", isMobile ? "px-2 max-w-full" : "px-8 max-w-[1000px]")}>
-                  <History sessions={nbackHistory} defaultExpanded={false} />
+                  <History
+                    sessions={nbackHistory}
+                    defaultExpanded={false}
+                    onDeleteSession={handleDeleteSession}
+                    isMobile={isMobile}
+                  />
                 </div>
               )}
             </div>
@@ -1394,8 +1404,12 @@ Example: In a 2-back task, if a pattern matches what appeared 2 positions ago, $
           )}
           
           {/* History Section */}
-          <div className="container mx-auto px-4 pb-8">
-            <History sessions={nbackHistory} />
+          <div className={cn("container mx-auto pb-8", isMobile ? "px-2" : "px-4")}>
+            <History
+              sessions={nbackHistory}
+              onDeleteSession={handleDeleteSession}
+              isMobile={isMobile}
+            />
           </div>
         </>
       )}

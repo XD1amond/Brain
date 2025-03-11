@@ -99,7 +99,7 @@ function SettingsPopup({ settings, onClose }) {
   );
 }
 
-function HistoryItem({ session, index }) {
+function HistoryItem({ session, index, onDelete, isMobile }) {
   const [expanded, setExpanded] = useState(false);
   const [currentTurn, setCurrentTurn] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
@@ -110,7 +110,8 @@ function HistoryItem({ session, index }) {
   return (
     <div className={cn(
       "border border-border rounded-lg overflow-hidden transition-all",
-      expanded ? "mb-6" : "mb-2"
+      expanded ? "mb-6" : "mb-2",
+      isMobile && "w-full"
     )}>
       {/* Preview header - always visible */}
       <div 
@@ -168,7 +169,26 @@ function HistoryItem({ session, index }) {
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="p-4 bg-background border-t border-border">
+            <div className={cn(
+              "p-4 bg-background border-t border-border relative",
+              isMobile && "pb-12" // Add extra padding at the bottom in mobile view
+            )}>
+              {/* Delete icon in bottom left */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm('Are you sure you want to delete this history item?')) {
+                    onDelete(session.timestamp);
+                  }
+                }}
+                className="absolute bottom-4 left-4 text-red-500 hover:text-red-600 transition-colors"
+                title="Delete this history item"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
               <div className="flex flex-col md:flex-row gap-6">
                 {/* Grid display */}
                 <div className="flex-1 min-w-0">
@@ -318,7 +338,7 @@ function HistoryItem({ session, index }) {
   );
 }
 
-export function History({ sessions, defaultExpanded = true }) {
+export function History({ sessions, defaultExpanded = true, onDeleteSession, isMobile = false }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   
   if (!sessions || sessions.length === 0) {
@@ -326,7 +346,10 @@ export function History({ sessions, defaultExpanded = true }) {
   }
   
   return (
-    <div className="mt-8 bg-card rounded-xl p-6 shadow-lg">
+    <div className={cn(
+      "mt-8 bg-card rounded-xl p-6 shadow-lg",
+      isMobile && "w-full mx-auto"
+    )}>
       <div 
         className="flex items-center justify-between mb-4 cursor-pointer"
         onClick={() => setExpanded(!expanded)}
@@ -361,10 +384,12 @@ export function History({ sessions, defaultExpanded = true }) {
           >
             <div className="space-y-2 mt-4">
               {sessions.slice().reverse().map((session, index) => (
-                <HistoryItem 
-                  key={session.timestamp} 
-                  session={session} 
-                  index={sessions.length - 1 - index} 
+                <HistoryItem
+                  key={session.timestamp}
+                  session={session}
+                  index={sessions.length - 1 - index}
+                  onDelete={onDeleteSession}
+                  isMobile={isMobile}
                 />
               ))}
             </div>
